@@ -1,6 +1,6 @@
-// SZKIELET sesji C1, czerwiec 2021 — struktura (liczba zadań, luk i punktów) bez treści.
-// Wklej treść w miejsca oznaczone [WKLEJ ...], uzupełnij "answer" (i "options" dla list rozwijanych),
-// a potem dodaj plik w index.html przed app.js. Nie ładuj go wcześniej — pokazałby puste pola.
+// SZKIELET sesji C1, czerwiec 2021 — struktura i klucz odpowiedzi, bez treści zadań.
+// Wklej treść w miejsca [WKLEJ ...], potem dodaj plik w index.html przed app.js.
+// BRAK: odpowiedzi do Słuchanie II i Czytanie III (TAK/NIE/BI) — w przesłanym kluczu zaginęły zaznaczenia X.
 (function () {
   window.registerSession(["C1"], "sluchanie", {
     title: "Czerwiec 2021",
@@ -22,25 +22,60 @@
         ],
         "gaps": {
           "1": {
-            "answer": ""
+            "answer": "c",
+            "options": [
+              "a",
+              "b",
+              "c"
+            ]
           },
           "2": {
-            "answer": ""
+            "answer": "b",
+            "options": [
+              "a",
+              "b",
+              "c"
+            ]
           },
           "3": {
-            "answer": ""
+            "answer": "a",
+            "options": [
+              "a",
+              "b",
+              "c"
+            ]
           },
           "4": {
-            "answer": ""
+            "answer": "c",
+            "options": [
+              "a",
+              "b",
+              "c"
+            ]
           },
           "5": {
-            "answer": ""
+            "answer": "b",
+            "options": [
+              "a",
+              "b",
+              "c"
+            ]
           },
           "6": {
-            "answer": ""
+            "answer": "a",
+            "options": [
+              "a",
+              "b",
+              "c"
+            ]
           },
           "7": {
-            "answer": ""
+            "answer": "a",
+            "options": [
+              "a",
+              "b",
+              "c"
+            ]
           }
         },
         "audio": {
@@ -64,28 +99,60 @@
         ],
         "gaps": {
           "1": {
-            "answer": ""
+            "answer": "",
+            "options": [
+              "TAK",
+              "NIE"
+            ]
           },
           "2": {
-            "answer": ""
+            "answer": "",
+            "options": [
+              "TAK",
+              "NIE"
+            ]
           },
           "3": {
-            "answer": ""
+            "answer": "",
+            "options": [
+              "TAK",
+              "NIE"
+            ]
           },
           "4": {
-            "answer": ""
+            "answer": "",
+            "options": [
+              "TAK",
+              "NIE"
+            ]
           },
           "5": {
-            "answer": ""
+            "answer": "",
+            "options": [
+              "TAK",
+              "NIE"
+            ]
           },
           "6": {
-            "answer": ""
+            "answer": "",
+            "options": [
+              "TAK",
+              "NIE"
+            ]
           },
           "7": {
-            "answer": ""
+            "answer": "",
+            "options": [
+              "TAK",
+              "NIE"
+            ]
           },
           "8": {
-            "answer": ""
+            "answer": "",
+            "options": [
+              "TAK",
+              "NIE"
+            ]
           }
         },
         "audio": {
@@ -109,28 +176,68 @@
         ],
         "gaps": {
           "1": {
-            "answer": ""
+            "answer": "b",
+            "options": [
+              "a",
+              "b",
+              "c"
+            ]
           },
           "2": {
-            "answer": ""
+            "answer": "c",
+            "options": [
+              "a",
+              "b",
+              "c"
+            ]
           },
           "3": {
-            "answer": ""
+            "answer": "a",
+            "options": [
+              "a",
+              "b",
+              "c"
+            ]
           },
           "4": {
-            "answer": ""
+            "answer": "c",
+            "options": [
+              "a",
+              "b",
+              "c"
+            ]
           },
           "5": {
-            "answer": ""
+            "answer": "b",
+            "options": [
+              "a",
+              "b",
+              "c"
+            ]
           },
           "6": {
-            "answer": ""
+            "answer": "c",
+            "options": [
+              "a",
+              "b",
+              "c"
+            ]
           },
           "7": {
-            "answer": ""
+            "answer": "b",
+            "options": [
+              "a",
+              "b",
+              "c"
+            ]
           },
           "8": {
-            "answer": ""
+            "answer": "a",
+            "options": [
+              "a",
+              "b",
+              "c"
+            ]
           }
         },
         "audio": {
@@ -156,34 +263,104 @@
         ],
         "gaps": {
           "1": {
-            "answer": ""
+            "answer": "2",
+            "options": [
+              "1",
+              "2",
+              "3",
+              "4",
+              "5"
+            ]
           },
           "2": {
-            "answer": ""
+            "answer": "4",
+            "options": [
+              "1",
+              "2",
+              "3",
+              "4",
+              "5"
+            ]
           },
           "3": {
-            "answer": ""
+            "answer": "2",
+            "options": [
+              "1",
+              "2",
+              "3",
+              "4",
+              "5"
+            ]
           },
           "4": {
-            "answer": ""
+            "answer": "5",
+            "options": [
+              "1",
+              "2",
+              "3",
+              "4",
+              "5"
+            ]
           },
           "5": {
-            "answer": ""
+            "answer": "1",
+            "options": [
+              "1",
+              "2",
+              "3",
+              "4",
+              "5"
+            ]
           },
           "6": {
-            "answer": ""
+            "answer": "4",
+            "options": [
+              "1",
+              "2",
+              "3",
+              "4",
+              "5"
+            ]
           },
           "7": {
-            "answer": ""
+            "answer": "3",
+            "options": [
+              "1",
+              "2",
+              "3",
+              "4",
+              "5"
+            ]
           },
           "8": {
-            "answer": ""
+            "answer": "5",
+            "options": [
+              "1",
+              "2",
+              "3",
+              "4",
+              "5"
+            ]
           },
           "9": {
-            "answer": ""
+            "answer": "1",
+            "options": [
+              "1",
+              "2",
+              "3",
+              "4",
+              "5"
+            ]
           },
           "10": {
-            "answer": ""
+            "answer": "3",
+            "options": [
+              "1",
+              "2",
+              "3",
+              "4",
+              "5"
+            ]
           }
         },
         "audio": {
@@ -206,27 +383,59 @@
         ],
         "gaps": {
           "1": {
-            "answer": ""
+            "answer": [
+              "Pałac na Wodzie"
+            ],
+            "wide": true
           },
           "2": {
-            "answer": ""
+            "answer": [
+              "Szwecji, Hiszpanii, Wielkiej Brytanii",
+              "Szwecji, Hiszpanii",
+              "Hiszpanii, Szwecji",
+              "Szwecji, Wielkiej Brytanii",
+              "Hiszpanii, Wielkiej Brytanii"
+            ],
+            "wide": true
           },
           "3": {
-            "answer": ""
+            "answer": [
+              "W Alei Zasłużonych",
+              "na tyłach katakumb"
+            ],
+            "wide": true
           },
           "4": {
-            "answer": ""
+            "answer": [
+              "W katastrofie lotniczej",
+              "W wypadku lotniczym",
+              "Lecąc na zawody do Pragi"
+            ],
+            "wide": true
           },
           "5": {
-            "answer": ""
+            "answer": [
+              "Osoby posiadające karty wstępu",
+              "Osoby mające karty wstępu",
+              "Posiadacze kart wstępu"
+            ],
+            "wide": true
           },
           "6": {
-            "answer": ""
+            "answer": [
+              "Przedstawia dłonie kadrujące obraz"
+            ],
+            "wide": true
           },
           "7": {
-            "answer": ""
+            "answer": [
+              "Podczas operacji będącej konsekwencją ataku serca",
+              "Podczas operacji po ataku serca"
+            ],
+            "wide": true
           }
         },
+        "answerNote": "Należy uznać też inne odpowiedzi zgodne z transkrypcją.",
         "audio": {
           "src": "audio/c1-2021-06-5.mp3"
         }
@@ -254,28 +463,116 @@
         ],
         "gaps": {
           "1": {
-            "answer": ""
+            "answer": "I",
+            "options": [
+              "A",
+              "B",
+              "C",
+              "D",
+              "E",
+              "F",
+              "G",
+              "H",
+              "I"
+            ]
           },
           "2": {
-            "answer": ""
+            "answer": "G",
+            "options": [
+              "A",
+              "B",
+              "C",
+              "D",
+              "E",
+              "F",
+              "G",
+              "H",
+              "I"
+            ]
           },
           "3": {
-            "answer": ""
+            "answer": "E",
+            "options": [
+              "A",
+              "B",
+              "C",
+              "D",
+              "E",
+              "F",
+              "G",
+              "H",
+              "I"
+            ]
           },
           "4": {
-            "answer": ""
+            "answer": "B",
+            "options": [
+              "A",
+              "B",
+              "C",
+              "D",
+              "E",
+              "F",
+              "G",
+              "H",
+              "I"
+            ]
           },
           "5": {
-            "answer": ""
+            "answer": "C",
+            "options": [
+              "A",
+              "B",
+              "C",
+              "D",
+              "E",
+              "F",
+              "G",
+              "H",
+              "I"
+            ]
           },
           "6": {
-            "answer": ""
+            "answer": "H",
+            "options": [
+              "A",
+              "B",
+              "C",
+              "D",
+              "E",
+              "F",
+              "G",
+              "H",
+              "I"
+            ]
           },
           "7": {
-            "answer": ""
+            "answer": "A",
+            "options": [
+              "A",
+              "B",
+              "C",
+              "D",
+              "E",
+              "F",
+              "G",
+              "H",
+              "I"
+            ]
           },
           "8": {
-            "answer": ""
+            "answer": "F",
+            "options": [
+              "A",
+              "B",
+              "C",
+              "D",
+              "E",
+              "F",
+              "G",
+              "H",
+              "I"
+            ]
           }
         }
       },
@@ -298,34 +595,174 @@
         ],
         "gaps": {
           "1": {
-            "answer": ""
+            "answer": "E",
+            "options": [
+              "A",
+              "B",
+              "C",
+              "D",
+              "E",
+              "F",
+              "G",
+              "H",
+              "I",
+              "J",
+              "K",
+              "L"
+            ]
           },
           "2": {
-            "answer": ""
+            "answer": "K",
+            "options": [
+              "A",
+              "B",
+              "C",
+              "D",
+              "E",
+              "F",
+              "G",
+              "H",
+              "I",
+              "J",
+              "K",
+              "L"
+            ]
           },
           "3": {
-            "answer": ""
+            "answer": "B",
+            "options": [
+              "A",
+              "B",
+              "C",
+              "D",
+              "E",
+              "F",
+              "G",
+              "H",
+              "I",
+              "J",
+              "K",
+              "L"
+            ]
           },
           "4": {
-            "answer": ""
+            "answer": "G",
+            "options": [
+              "A",
+              "B",
+              "C",
+              "D",
+              "E",
+              "F",
+              "G",
+              "H",
+              "I",
+              "J",
+              "K",
+              "L"
+            ]
           },
           "5": {
-            "answer": ""
+            "answer": "C",
+            "options": [
+              "A",
+              "B",
+              "C",
+              "D",
+              "E",
+              "F",
+              "G",
+              "H",
+              "I",
+              "J",
+              "K",
+              "L"
+            ]
           },
           "6": {
-            "answer": ""
+            "answer": "F",
+            "options": [
+              "A",
+              "B",
+              "C",
+              "D",
+              "E",
+              "F",
+              "G",
+              "H",
+              "I",
+              "J",
+              "K",
+              "L"
+            ]
           },
           "7": {
-            "answer": ""
+            "answer": "H",
+            "options": [
+              "A",
+              "B",
+              "C",
+              "D",
+              "E",
+              "F",
+              "G",
+              "H",
+              "I",
+              "J",
+              "K",
+              "L"
+            ]
           },
           "8": {
-            "answer": ""
+            "answer": "J",
+            "options": [
+              "A",
+              "B",
+              "C",
+              "D",
+              "E",
+              "F",
+              "G",
+              "H",
+              "I",
+              "J",
+              "K",
+              "L"
+            ]
           },
           "9": {
-            "answer": ""
+            "answer": "L",
+            "options": [
+              "A",
+              "B",
+              "C",
+              "D",
+              "E",
+              "F",
+              "G",
+              "H",
+              "I",
+              "J",
+              "K",
+              "L"
+            ]
           },
           "10": {
-            "answer": ""
+            "answer": "I",
+            "options": [
+              "A",
+              "B",
+              "C",
+              "D",
+              "E",
+              "F",
+              "G",
+              "H",
+              "I",
+              "J",
+              "K",
+              "L"
+            ]
           }
         }
       },
@@ -346,28 +783,68 @@
         ],
         "gaps": {
           "1": {
-            "answer": ""
+            "answer": "",
+            "options": [
+              "TAK",
+              "NIE",
+              "BI"
+            ]
           },
           "2": {
-            "answer": ""
+            "answer": "",
+            "options": [
+              "TAK",
+              "NIE",
+              "BI"
+            ]
           },
           "3": {
-            "answer": ""
+            "answer": "",
+            "options": [
+              "TAK",
+              "NIE",
+              "BI"
+            ]
           },
           "4": {
-            "answer": ""
+            "answer": "",
+            "options": [
+              "TAK",
+              "NIE",
+              "BI"
+            ]
           },
           "5": {
-            "answer": ""
+            "answer": "",
+            "options": [
+              "TAK",
+              "NIE",
+              "BI"
+            ]
           },
           "6": {
-            "answer": ""
+            "answer": "",
+            "options": [
+              "TAK",
+              "NIE",
+              "BI"
+            ]
           },
           "7": {
-            "answer": ""
+            "answer": "",
+            "options": [
+              "TAK",
+              "NIE",
+              "BI"
+            ]
           },
           "8": {
-            "answer": ""
+            "answer": "",
+            "options": [
+              "TAK",
+              "NIE",
+              "BI"
+            ]
           }
         }
       },
@@ -381,31 +858,29 @@
           "2. [WKLEJ] [[2]]",
           "3. [WKLEJ] [[3]]",
           "4. [WKLEJ] [[4]]",
-          "5. [WKLEJ] [[5]]",
-          "6. [WKLEJ] [[6]]",
-          "7. [WKLEJ] [[7]]"
+          "5. [WKLEJ] [[5]]"
         ],
         "gaps": {
           "1": {
-            "answer": ""
+            "answer": [
+              "B, E",
+              "E, B"
+            ]
           },
           "2": {
-            "answer": ""
+            "answer": "C"
           },
           "3": {
-            "answer": ""
+            "answer": "B"
           },
           "4": {
-            "answer": ""
+            "answer": "E"
           },
           "5": {
-            "answer": ""
-          },
-          "6": {
-            "answer": ""
-          },
-          "7": {
-            "answer": ""
+            "answer": [
+              "A, D",
+              "D, A"
+            ]
           }
         }
       },
@@ -432,46 +907,46 @@
         ],
         "gaps": {
           "1": {
-            "answer": ""
+            "answer": "wiry"
           },
           "2": {
-            "answer": ""
+            "answer": "przedostania się"
           },
           "3": {
-            "answer": ""
+            "answer": "wykazano"
           },
           "4": {
-            "answer": ""
+            "answer": "drobiny"
           },
           "5": {
-            "answer": ""
+            "answer": "dostępem"
           },
           "6": {
-            "answer": ""
+            "answer": "stężenie"
           },
           "7": {
-            "answer": ""
+            "answer": "wyodrębnienie"
           },
           "8": {
-            "answer": ""
+            "answer": "stworzy"
           },
           "9": {
-            "answer": ""
+            "answer": "zasiedlenia"
           },
           "10": {
-            "answer": ""
+            "answer": "szczep"
           },
           "11": {
-            "answer": ""
+            "answer": "rozkładać"
           },
           "12": {
-            "answer": ""
+            "answer": "szacunkowe"
           },
           "13": {
-            "answer": ""
+            "answer": "rozbieżności"
           },
           "14": {
-            "answer": ""
+            "answer": "dobrostanu"
           }
         }
       }
@@ -500,34 +975,40 @@
         ],
         "gaps": {
           "1": {
-            "answer": ""
+            "answer": [
+              "trzystoma",
+              "trzystu"
+            ]
           },
           "2": {
-            "answer": ""
+            "answer": [
+              "laty",
+              "latami"
+            ]
           },
           "3": {
-            "answer": ""
+            "answer": "kilkanaściorgiem"
           },
           "4": {
-            "answer": ""
+            "answer": "dzieci"
           },
           "5": {
-            "answer": ""
+            "answer": "trzej"
           },
           "6": {
-            "answer": ""
+            "answer": "włamywacze"
           },
           "7": {
-            "answer": ""
+            "answer": "tysiącowi"
           },
           "8": {
-            "answer": ""
+            "answer": "funkcjonariuszy"
           },
           "9": {
-            "answer": ""
+            "answer": "dwudziestu pięciu"
           },
           "10": {
-            "answer": ""
+            "answer": "dwojga"
           }
         }
       },
@@ -545,19 +1026,87 @@
         ],
         "gaps": {
           "1": {
-            "answer": ""
+            "answer": [
+              "Ekonomiści spodziewają się spłaty całego zadłużenia w przyszłym roku.",
+              "Ekonomiści spodziewają się spłacenia całego zadłużenia w przyszłym roku."
+            ],
+            "wide": true
           },
           "2": {
-            "answer": ""
+            "answer": [
+              "Ograniczenie zużycia węgla spowoduje znaczący spadek stężenia gazów cieplarnianych w atmosferze."
+            ],
+            "wide": true
           },
           "3": {
-            "answer": ""
+            "answer": [
+              "Ekolodzy domagają się ograniczenia sprzedaży produktów jednorazowego użytku."
+            ],
+            "wide": true
           },
           "4": {
-            "answer": ""
+            "answer": [
+              "Nieprzejednane stanowisko uczestników protestu wymusiło na rządzących ponowne zajęcie się zmianą przepisów.",
+              "Nieprzejednane stanowisko uczestników protestu wymusiło ponowne zajęcie się zmianą przepisów przez rządzących."
+            ],
+            "wide": true
           },
           "5": {
-            "answer": ""
+            "answer": [
+              "Być może to właśnie konsekwentne działania ekologów zapewnią naszej planecie przetrwanie."
+            ],
+            "wide": true
+          }
+        },
+        "answerNote": "Należy zaakceptować także inne poprawne rozwiązania."
+      },
+      {
+        "points": 5,
+        "instruction": "[WKLEJ polecenie]",
+        "example": "[WKLEJ przykład]",
+        "content": [
+          "[WKLEJ tekst]",
+          "1. [WKLEJ] [[1]]",
+          "2. [WKLEJ] [[2]]",
+          "3. [WKLEJ] [[3]]",
+          "4. [WKLEJ] [[4]]",
+          "5. [WKLEJ] [[5]]",
+          "6. [WKLEJ] [[6]]",
+          "7. [WKLEJ] [[7]]",
+          "8. [WKLEJ] [[8]]",
+          "9. [WKLEJ] [[9]]",
+          "10. [WKLEJ] [[10]]"
+        ],
+        "gaps": {
+          "1": {
+            "answer": "przytulenie"
+          },
+          "2": {
+            "answer": "przygarnięciu"
+          },
+          "3": {
+            "answer": "związków"
+          },
+          "4": {
+            "answer": "przekazie"
+          },
+          "5": {
+            "answer": "zasłonięcia"
+          },
+          "6": {
+            "answer": "wsparcia"
+          },
+          "7": {
+            "answer": "odpowiedzią"
+          },
+          "8": {
+            "answer": "ucieczka"
+          },
+          "9": {
+            "answer": "podejścia"
+          },
+          "10": {
+            "answer": "nawiązaniem"
           }
         }
       },
@@ -580,34 +1129,34 @@
         ],
         "gaps": {
           "1": {
-            "answer": ""
+            "answer": "kilkusekundowy"
           },
           "2": {
-            "answer": ""
+            "answer": "sensacyjna"
           },
           "3": {
-            "answer": ""
+            "answer": "bezgraniczny"
           },
           "4": {
-            "answer": ""
+            "answer": "przybrzeżnych"
           },
           "5": {
-            "answer": ""
+            "answer": "patentowych"
           },
           "6": {
-            "answer": ""
+            "answer": "słonecznych"
           },
           "7": {
-            "answer": ""
+            "answer": "przydrożnego"
           },
           "8": {
-            "answer": ""
+            "answer": "ówczesne"
           },
           "9": {
-            "answer": ""
+            "answer": "poważnymi"
           },
           "10": {
-            "answer": ""
+            "answer": "chaotyczne"
           }
         }
       },
@@ -630,34 +1179,34 @@
         ],
         "gaps": {
           "1": {
-            "answer": ""
+            "answer": "znalazłszy"
           },
           "2": {
-            "answer": ""
+            "answer": "okrzyknięty"
           },
           "3": {
-            "answer": ""
+            "answer": "przedstawiająca"
           },
           "4": {
-            "answer": ""
+            "answer": "wyciągniętą"
           },
           "5": {
-            "answer": ""
+            "answer": "unoszonym"
           },
           "6": {
-            "answer": ""
+            "answer": "wspierając"
           },
           "7": {
-            "answer": ""
+            "answer": "zaskoczeni"
           },
           "8": {
-            "answer": ""
+            "answer": "udostępnionego"
           },
           "9": {
-            "answer": ""
+            "answer": "umieszczając"
           },
           "10": {
-            "answer": ""
+            "answer": "stworzywszy"
           }
         }
       },
@@ -680,34 +1229,98 @@
         ],
         "gaps": {
           "1": {
-            "answer": ""
+            "answer": "by"
           },
           "2": {
-            "answer": ""
+            "answer": "ilekroć"
           },
           "3": {
-            "answer": ""
+            "answer": "niż"
           },
           "4": {
-            "answer": ""
+            "answer": "choć"
           },
           "5": {
-            "answer": ""
+            "answer": "a mianowicie"
           },
           "6": {
-            "answer": ""
+            "answer": "dopiero"
           },
           "7": {
-            "answer": ""
+            "answer": "czy"
           },
           "8": {
-            "answer": ""
+            "answer": "to"
           },
           "9": {
-            "answer": ""
+            "answer": "choćby"
           },
           "10": {
-            "answer": ""
+            "answer": "dla których"
+          }
+        },
+        "bank": [
+          "by",
+          "choć",
+          "choćby",
+          "czy",
+          "dla których",
+          "dopiero",
+          "gdyż",
+          "ilekroć",
+          "a mianowicie",
+          "o ile",
+          "niż",
+          "to"
+        ]
+      },
+      {
+        "points": 5,
+        "instruction": "[WKLEJ polecenie]",
+        "example": "[WKLEJ przykład]",
+        "content": [
+          "[WKLEJ tekst]",
+          "1. [WKLEJ] [[1]]",
+          "2. [WKLEJ] [[2]]",
+          "3. [WKLEJ] [[3]]",
+          "4. [WKLEJ] [[4]]",
+          "5. [WKLEJ] [[5]]",
+          "6. [WKLEJ] [[6]]",
+          "7. [WKLEJ] [[7]]",
+          "8. [WKLEJ] [[8]]",
+          "9. [WKLEJ] [[9]]",
+          "10. [WKLEJ] [[10]]"
+        ],
+        "gaps": {
+          "1": {
+            "answer": "rozrywa"
+          },
+          "2": {
+            "answer": "pęcznieje"
+          },
+          "3": {
+            "answer": "wylatują"
+          },
+          "4": {
+            "answer": "przygasły"
+          },
+          "5": {
+            "answer": "zamarło"
+          },
+          "6": {
+            "answer": "dostrzegłam"
+          },
+          "7": {
+            "answer": "podjęto"
+          },
+          "8": {
+            "answer": "ustalono"
+          },
+          "9": {
+            "answer": "pękł"
+          },
+          "10": {
+            "answer": "doszłoby"
           }
         }
       },
@@ -730,134 +1343,34 @@
         ],
         "gaps": {
           "1": {
-            "answer": ""
+            "answer": "księcia"
           },
           "2": {
-            "answer": ""
+            "answer": "je"
           },
           "3": {
-            "answer": ""
+            "answer": "źródeł"
           },
           "4": {
-            "answer": ""
+            "answer": "ksiąg"
           },
           "5": {
-            "answer": ""
+            "answer": "księżnej"
           },
           "6": {
-            "answer": ""
+            "answer": "tułowia"
           },
           "7": {
-            "answer": ""
+            "answer": "chrześcijanie"
           },
           "8": {
-            "answer": ""
+            "answer": "imion"
           },
           "9": {
-            "answer": ""
+            "answer": "smukli"
           },
           "10": {
-            "answer": ""
-          }
-        }
-      },
-      {
-        "points": 5,
-        "instruction": "[WKLEJ polecenie]",
-        "example": "[WKLEJ przykład]",
-        "content": [
-          "[WKLEJ tekst]",
-          "1. [WKLEJ] [[1]]",
-          "2. [WKLEJ] [[2]]",
-          "3. [WKLEJ] [[3]]",
-          "4. [WKLEJ] [[4]]",
-          "5. [WKLEJ] [[5]]",
-          "6. [WKLEJ] [[6]]",
-          "7. [WKLEJ] [[7]]",
-          "8. [WKLEJ] [[8]]",
-          "9. [WKLEJ] [[9]]",
-          "10. [WKLEJ] [[10]]"
-        ],
-        "gaps": {
-          "1": {
-            "answer": ""
-          },
-          "2": {
-            "answer": ""
-          },
-          "3": {
-            "answer": ""
-          },
-          "4": {
-            "answer": ""
-          },
-          "5": {
-            "answer": ""
-          },
-          "6": {
-            "answer": ""
-          },
-          "7": {
-            "answer": ""
-          },
-          "8": {
-            "answer": ""
-          },
-          "9": {
-            "answer": ""
-          },
-          "10": {
-            "answer": ""
-          }
-        }
-      },
-      {
-        "points": 5,
-        "instruction": "[WKLEJ polecenie]",
-        "example": "[WKLEJ przykład]",
-        "content": [
-          "[WKLEJ tekst]",
-          "1. [WKLEJ] [[1]]",
-          "2. [WKLEJ] [[2]]",
-          "3. [WKLEJ] [[3]]",
-          "4. [WKLEJ] [[4]]",
-          "5. [WKLEJ] [[5]]",
-          "6. [WKLEJ] [[6]]",
-          "7. [WKLEJ] [[7]]",
-          "8. [WKLEJ] [[8]]",
-          "9. [WKLEJ] [[9]]",
-          "10. [WKLEJ] [[10]]"
-        ],
-        "gaps": {
-          "1": {
-            "answer": ""
-          },
-          "2": {
-            "answer": ""
-          },
-          "3": {
-            "answer": ""
-          },
-          "4": {
-            "answer": ""
-          },
-          "5": {
-            "answer": ""
-          },
-          "6": {
-            "answer": ""
-          },
-          "7": {
-            "answer": ""
-          },
-          "8": {
-            "answer": ""
-          },
-          "9": {
-            "answer": ""
-          },
-          "10": {
-            "answer": ""
+            "answer": "młodzieńcy"
           }
         }
       }

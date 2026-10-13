@@ -45,11 +45,14 @@
     toastTimer = setTimeout(function () { t.classList.remove("show"); }, 2400);
   }
   function norm(s) {
-    return String(s).toLowerCase().replace(/[–—]/g, "-").replace(/[.,!?;:«»"<>]/g, "")
+    return String(s).toLowerCase().replace(/[–—]/g, "-").replace(/[.,!?;:«»"<>]/g, " ")
       .replace(/\s+/g, " ").trim();
   }
   function answers(gap) {
     return [].concat(gap.answer).map(norm);
+  }
+  function keyed(task) {
+    return Object.keys(task.gaps || {}).filter(function (n) { return answers(task.gaps[n]).some(Boolean); });
   }
   function fmt(n) { return Math.round(n * 10) / 10 + ""; }
   function sessionsFor(level, section) {
@@ -234,7 +237,7 @@
     if (!s.tasks && s.pdf) return renderPdf(level, section, s);
     var meta = C.sections[section];
     var gradable = s.tasks.some(function (t) { return t.gaps; });
-    var total = s.tasks.reduce(function (sum, t) { return sum + (t.gaps ? (t.points || 0) : 0); }, 0);
+    var total = s.tasks.reduce(function (sum, t) { return sum + (keyed(t).length ? (t.points || 0) : 0); }, 0);
     var html = '<header class="test-head"><div class="test-head-row"><button class="back" data-go="' + level + "/" + section +
       '" aria-label="Zamknij">' + ICONS.close + '</button><div class="test-title"><b>' + level + " · " + esc(s.name || meta.subtitle.split(" · ")[0]) +
       "</b><span>" + esc(s.title) + "</span></div>" + (gradable ? '<div class="score" id="score">0/' + fmt(total) + "</div>" : "") +
@@ -349,7 +352,7 @@
       var score = 0, good = 0, all = 0;
       s.tasks.forEach(function (task, ti) {
         if (!task.gaps) return;
-        var keys = Object.keys(task.gaps), ok = 0;
+        var keys = keyed(task), ok = 0;
         keys.forEach(function (n) {
           var el = app.querySelector('[data-key="' + ti + ":" + n + '"]');
           if (!el) return;
