@@ -109,7 +109,7 @@ button { font: inherit; color: inherit; }
 .hero h1 { font-size: 28px; font-weight: 800; margin: 0 0 4px; letter-spacing: -.3px; }
 .hero p { margin: 0; color: var(--muted); font-size: 14px; }
 .levels {
-  display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px;
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px;
   background: #e2e5ec; border-radius: 16px; padding: 5px; margin: 18px 0 22px;
 }
 .levels button {

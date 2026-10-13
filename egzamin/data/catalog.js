@@ -2,7 +2,7 @@
 // Sesja bez zadań (tasks) jest wyświetlana jako zablokowana (kłódka).
 // Pliki z danymi sesji wywołują window.registerSession(...) — patrz README.md.
 window.CATALOG = {
-  levels: ["B1", "B2", "C1"],
+  levels: ["B1", "B2", "C1", "C2"],
 
   sections: {
     sluchanie: { title: "Słuchanie", subtitle: "Rozumienie ze słuchu", icon: "headphones", ai: false, showPoints: true },
@@ -16,7 +16,8 @@ window.CATALOG = {
   sessions: {
     B1: ["Luty 2024", "Kwiecień 2024", "Listopad 2023", "Kwiecień 2023", "Listopad 2022", "Marzec 2022", "Czerwiec 2021", "Marzec 2021"],
     B2: ["Kwiecień 2024", "Listopad 2023", "Kwiecień 2023", "Listopad 2022", "Marzec 2022", "Czerwiec 2021", "Marzec 2021"],
-    C1: ["Kwiecień 2024", "Listopad 2023", "Kwiecień 2023", "Listopad 2022", "Marzec 2022", "Czerwiec 2021", "Marzec 2021"]
+    C1: ["Kwiecień 2024", "Listopad 2023", "Kwiecień 2023", "Listopad 2022", "Marzec 2022", "Czerwiec 2021", "Marzec 2021"],
+    C2: ["Listopad 2021"]
   },
 
   defaultPoints: 40

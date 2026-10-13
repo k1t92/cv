@@ -124,8 +124,8 @@
 
   // ---------- Section (session list) ----------
   function sessionRow(level, section, s, meta) {
-    var locked = !s.tasks;
-    var pts = meta.showPoints ? '<span class="pts">' + fmt(totalPoints(s)) + " pkt</span>" : "";
+    var locked = !s.tasks && !s.pdf;
+    var pts = meta.showPoints && (s.tasks || !s.pdf || s.points) ? '<span class="pts">' + fmt(totalPoints(s)) + " pkt</span>" : "";
     return '<button class="row" ' + (locked ? 'data-locked="1"' : 'data-go="' + level + "/" + section + "/" + s.id + '"') +
       '><div class="row-icon">' + ICONS[meta.icon] + '</div><div class="row-body"><div class="row-title">' +
       esc(s.title) + "</div>" + pts + "</div>" + (locked ? ICONS.lock : ICONS.chev) + "</button>";
@@ -216,7 +216,22 @@
     return '<section class="task">' + top + '<div class="content">' + body + "</div></section>";
   }
 
+  function renderPdf(level, section, s) {
+    var meta = C.sections[section];
+    app.innerHTML = '<header class="test-head"><div class="test-head-row"><button class="back" data-go="' + level + "/" + section +
+      '" aria-label="Zamknij">' + ICONS.close + '</button><div class="test-title"><b>' + level + " · " + esc(meta.title) +
+      "</b><span>" + esc(s.title) + '</span></div></div><div class="progress"></div></header>' +
+      '<section class="task"><div class="task-top"><div class="task-tags"><span class="tag green">Arkusz egzaminacyjny</span>' +
+      '<span class="tag grey">PDF</span></div><p class="instr">Oficjalny arkusz otwiera się na stronie organizatora egzaminu. ' +
+      (s.pdfNote || "Arkusz obejmuje wszystkie części pisemne egzaminu.") + '</p></div><div class="content">' +
+      '<div class="actions" style="margin:0"><a class="btn" style="text-align:center;text-decoration:none" target="_blank" rel="noopener" href="' +
+      esc(s.pdf) + '">Otwórz arkusz (PDF)</a></div></div></section>' +
+      (s.source ? '<p class="source">Źródło: ' + esc(s.source) + "</p>" : "");
+    bindGo();
+  }
+
   function renderTest(level, section, s) {
+    if (!s.tasks && s.pdf) return renderPdf(level, section, s);
     var meta = C.sections[section];
     var gradable = s.tasks.some(function (t) { return t.gaps; });
     var total = s.tasks.reduce(function (sum, t) { return sum + (t.gaps ? (t.points || 0) : 0); }, 0);

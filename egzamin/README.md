@@ -47,3 +47,14 @@ Inne pola zadania:
 - `wide: true` w luce — szersze pole (całe zdania).
 
 Punkty zadania dzielone są równo między luki.
+
+## Sesja jako link do oficjalnego arkusza
+Zamiast kopiować treść, sesja może otwierać oryginalny PDF organizatora:
+
+```js
+window.registerSession(["C2"], "czytanie", {
+  title: "Listopad 2021",
+  source: "certyfikatpolski.pl",
+  pdf: "https://certyfikatpolski.pl/wp-content/uploads/.../Arkusz_egzaminacyjny.pdf"
+});
+```
