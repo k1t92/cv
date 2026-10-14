@@ -9,7 +9,7 @@ Po sprawdzeniu każda błędna odpowiedź pokazuje poprawną formę i regułę (
 Wszystkie ćwiczenia i teksty są oryginalne (osoby i miejsca w tekstach są fikcyjne).
 
 ## Dodawanie ćwiczeń
-Najprościej w `data/wlasne.js`. Format (szczegóły w `data/_bank.js`):
+Najprościej w `data/wlasne.js`. Format (szczegóły w `data/bank.js`):
 
 ```js
 T("gramatyka", "B2", "moj-temat", "Tytuł tematu", "Polecenie.", [
