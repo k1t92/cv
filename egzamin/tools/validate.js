@@ -3,7 +3,7 @@ const fs = require("fs"), path = require("path"), vm = require("vm");
 const dir = path.join(__dirname, "..", "data");
 const ctx = { window: {} }; ctx.window.window = ctx.window; vm.createContext(ctx);
 const html = fs.readFileSync(path.join(__dirname, "..", "index.html"), "utf8");
-const files = [...html.matchAll(/src="data\/([^"]+)"/g)].map(m => m[1]);
+const files = [...html.matchAll(/src="data\/([^"?]+)/g)].map(m => m[1]);
 for (const f of files) {
   const p = path.join(dir, f);
   if (!fs.existsSync(p)) { console.log("BRAK PLIKU:", f); continue; }

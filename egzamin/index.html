@@ -6,27 +6,35 @@
   <meta name="theme-color" content="#eef1f6" media="(prefers-color-scheme: light)">
   <meta name="theme-color" content="#14151a" media="(prefers-color-scheme: dark)">
   <title>Polski B1–C2 — trening</title>
-  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="styles.css?v=3">
 </head>
 <body>
-  <main id="app"></main>
+  <main id="app"><p class="empty" id="boot">Ładowanie…</p></main>
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
-  <script src="data/_bank.js"></script>
+  <script>
+    // Jeśli coś pójdzie nie tak, pokaż błąd zamiast pustej strony.
+    window.onerror = function (msg, src, line) {
+      var b = document.getElementById("boot") || document.getElementById("app");
+      b.innerHTML = "Nie udało się uruchomić strony. Odśwież ją (może to być stara wersja w pamięci przeglądarki).<br><small>" +
+        String(msg).replace(/</g, "&lt;") + " — " + String(src).split("/").pop() + ":" + line + "</small>";
+    };
+  </script>
+  <script src="data/_bank.js?v=3"></script>
   <!-- Gramatyka -->
-  <script src="data/gramatyka-b1.js"></script>
-  <script src="data/gramatyka-b2.js"></script>
-  <script src="data/gramatyka-c1.js"></script>
-  <script src="data/gramatyka-c2.js"></script>
+  <script src="data/gramatyka-b1.js?v=3"></script>
+  <script src="data/gramatyka-b2.js?v=3"></script>
+  <script src="data/gramatyka-c1.js?v=3"></script>
+  <script src="data/gramatyka-c2.js?v=3"></script>
   <!-- Słownictwo -->
-  <script src="data/slownictwo-frazeologia.js"></script>
-  <script src="data/slownictwo-synonimy.js"></script>
-  <script src="data/slownictwo-spojniki.js"></script>
+  <script src="data/slownictwo-frazeologia.js?v=3"></script>
+  <script src="data/slownictwo-synonimy.js?v=3"></script>
+  <script src="data/slownictwo-spojniki.js?v=3"></script>
   <!-- Czytanie i pisanie -->
-  <script src="data/czytanie.js"></script>
-  <script src="data/pisanie.js"></script>
+  <script src="data/czytanie.js?v=3"></script>
+  <script src="data/pisanie.js?v=3"></script>
   <!-- Zadania przysłane przez użytkownika -->
-  <script src="data/wlasne.js"></script>
-  <script src="app.js"></script>
+  <script src="data/wlasne.js?v=3"></script>
+  <script src="app.js?v=3"></script>
 </body>
 </html>
