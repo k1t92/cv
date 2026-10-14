@@ -1,60 +1,24 @@
-# Egzamin z polskiego — trening
+# Polski B1–C2 — trening do egzaminu certyfikatowego
 
-Statyczna strona (HTML/CSS/JS, bez budowania). Otwórz `index.html` w przeglądarce
-albo opublikuj folder przez GitHub Pages: `https://<user>.github.io/cv/egzamin/`.
+Statyczna strona (HTML/CSS/JS, bez budowania). Działa z GitHub Pages: `/cv/egzamin/`.
 
-## Struktura
-- `data/catalog.js` — poziomy, części egzaminu, lista sesji (sesja bez danych = kłódka).
-- `data/demo-*.js` — przykładowe testy (treść oryginalna).
-- `app.js` — widoki: lista części, lista sesji, test z lukami, sprawdzanie i punktacja.
+**Działy:** Gramatyka · Słownictwo (frazeologizmy, synonimy, antonimy, spójniki i partykuły) · Czytanie · Pisanie.
+**Poziomy:** B1, B2, C1, C2. Wszystko otwarte, bez blokad. Ćwiczenia podzielone są na zestawy po 10; jest też „Losowy zestaw”.
+Po sprawdzeniu każda błędna odpowiedź pokazuje poprawną formę i regułę („Dlaczego”). Najlepsze wyniki i szkice wypracowań zapisują się w przeglądarce.
 
-## Jak dodać prawdziwą sesję
-1. Utwórz plik, np. `data/c1-gramatyka-kwiecien-2024.js`.
-2. Dodaj go w `index.html` przed `app.js`.
-3. Wypełnij według wzoru — `title` musi pasować do nazwy z `catalog.js`, wtedy kłódka znika:
+Wszystkie ćwiczenia i teksty są oryginalne (osoby i miejsca w tekstach są fikcyjne).
+
+## Dodawanie ćwiczeń
+Najprościej w `data/wlasne.js`. Format (szczegóły w `data/_bank.js`):
 
 ```js
-window.registerSession(["C1"], "gramatyka", {
-  title: "Kwiecień 2024",
-  name: "Poprawność gramatyczna",
-  source: "certyfikatpolski.pl",
-  tasks: [
-    {
-      points: 5,
-      instruction: "Proszę – zgodnie z przykładami – …",
-      example: "… (najciekawszą, <u>najciekawszych</u>, najciekawszym) …",
-      content: ["Tekst akapitu z luką [[1]] i kolejną [[2]]."],
-      gaps: {
-        1: { options: ["a", "b", "c"], answer: "b" },        // lista rozwijana
-        2: { hint: "zastanawiać się", answer: ["forma1", "forma2"] } // pole tekstowe, kilka poprawnych
-      }
-    },
-    {
-      points: 3,
-      bank: ["lecz", "lub", "a"],          // ramka z wyrazami -> luki bez "options" wybierają z ramki
-      content: ["… [[1]] …"],
-      gaps: { 1: { answer: "lecz" } }
-    }
-  ]
-});
+T("gramatyka", "B2", "moj-temat", "Tytuł tematu", "Polecenie.", [
+  ["Zdanie z luką ___ .", "*poprawna|błędna|błędna", "Wyjaśnienie reguły."],   // wybór
+  ["Wpisz formę ___ (czasownik).", "=forma|inna poprawna", "Wyjaśnienie."]      // wpisywanie
+]);
 ```
+`[[tekst]]` = podkreślenie, `**tekst**` = pogrubienie, `\n` = nowa linia.
 
-Inne pola zadania:
-- `text` — tekst do czytania (tablica akapitów) nad pytaniami.
-- `audio: { src: "audio/plik.mp3" }` lub `audio: { tts: "tekst" }` (synteza mowy) + `transcript`.
-- `type: "writing"` z `minWords` / `maxWords` — pole wypracowania z licznikiem słów.
-- `type: "speaking"` — polecenie + nagrywanie odpowiedzi mikrofonem.
-- `wide: true` w luce — szersze pole (całe zdania).
-
-Punkty zadania dzielone są równo między luki.
-
-## Sesja jako link do oficjalnego arkusza
-Zamiast kopiować treść, sesja może otwierać oryginalny PDF organizatora:
-
-```js
-window.registerSession(["C2"], "czytanie", {
-  title: "Listopad 2021",
-  source: "certyfikatpolski.pl",
-  pdf: "https://certyfikatpolski.pl/wp-content/uploads/.../Arkusz_egzaminacyjny.pdf"
-});
-```
+## Kontrola jakości
+`node egzamin/tools/validate.js` — sprawdza format, jedną poprawną odpowiedź, powtórzone opcje i pytania,
+obecność wyjaśnień. Przycisk „zgłoś błąd” przy ćwiczeniu kopiuje jego numer (np. `#b1-aspekt-3`).

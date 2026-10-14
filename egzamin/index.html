@@ -3,22 +3,30 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#eef1f6">
-  <title>Certyfikat Polski — trening</title>
+  <meta name="theme-color" content="#eef1f6" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#14151a" media="(prefers-color-scheme: dark)">
+  <title>Polski B1–C2 — trening</title>
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
   <main id="app"></main>
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
-  <script src="data/catalog.js"></script>
-  <script src="data/demo-gramatyka.js"></script>
-  <script src="data/demo-czytanie.js"></script>
-  <script src="data/demo-sluchanie.js"></script>
-  <script src="data/demo-mowienie.js"></script>
-  <script src="data/demo-pisanie.js"></script>
-  <script src="data/c2-2021-11.js"></script>
-  <!-- Własne sesje dodawaj tutaj, np. <script src="data/c1-gramatyka-2024-04.js"></script> -->
+  <script src="data/_bank.js"></script>
+  <!-- Gramatyka -->
+  <script src="data/gramatyka-b1.js"></script>
+  <script src="data/gramatyka-b2.js"></script>
+  <script src="data/gramatyka-c1.js"></script>
+  <script src="data/gramatyka-c2.js"></script>
+  <!-- Słownictwo -->
+  <script src="data/slownictwo-frazeologia.js"></script>
+  <script src="data/slownictwo-synonimy.js"></script>
+  <script src="data/slownictwo-spojniki.js"></script>
+  <!-- Czytanie i pisanie -->
+  <script src="data/czytanie.js"></script>
+  <script src="data/pisanie.js"></script>
+  <!-- Zadania przysłane przez użytkownika -->
+  <script src="data/wlasne.js"></script>
   <script src="app.js"></script>
 </body>
 </html>
