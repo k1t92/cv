@@ -42,7 +42,7 @@ main{max-width:560px;margin:0 auto;padding:0 0 40px}
 button{font:inherit;color:inherit;background:var(--chip);border:1px solid var(--line);border-radius:10px;padding:9px 12px;cursor:pointer;touch-action:manipulation}
 button:disabled{opacity:.45;cursor:default}
 button.primary{background:var(--accent);color:var(--accent-text);border-color:transparent;font-weight:600}
-.icon{min-width:42px;padding:8px 10px}
+.icon{min-width:42px;padding:8px 10px;font-size:18px;line-height:1}
 .card{background:var(--card);border:1px solid var(--line);border-radius:14px;margin:12px 16px;padding:14px}
 .card h2{font-size:15px;margin:0 0 10px;font-weight:650}
 details.card>summary{font-weight:650;cursor:pointer;list-style:none}
@@ -118,6 +118,11 @@ textarea{width:100%;min-height:130px;resize:vertical;font:13px/1.4 ui-monospace,
 .moves .m.cur [class^="t-"]{color:inherit}
 .toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--text);color:var(--bg);padding:10px 16px;border-radius:12px;font-size:14px;max-width:90vw;z-index:9;opacity:0;transition:opacity .2s;pointer-events:none}
 .toast.on{opacity:1}
+#nick{flex:1;min-width:0;font:inherit;color:var(--text);background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:9px 10px}
+.res{display:inline-block;min-width:92px;font-size:12.5px;font-weight:650}
+.res-w{color:var(--good)} .res-l{color:var(--blun)} .res-d{color:var(--muted)}
+.cdot{display:inline-block;width:10px;height:10px;border-radius:50%;border:1.5px solid var(--muted);vertical-align:0;margin-right:2px}
+.cdot.w{background:#fff} .cdot.b{background:#222}
 select{font:inherit;color:var(--text);background:var(--chip);border:1px solid var(--line);border-radius:10px;padding:8px}
 .note{font-size:12.5px;color:var(--muted);margin-top:8px}
 </style>
@@ -129,18 +134,28 @@ select{font:inherit;color:var(--text);background:var(--chip);border:1px solid va
 </header>
 <main>
   <details id="inputCard" class="card" open>
-    <summary>Новая партия</summary>
-    <textarea id="pgn" spellcheck="false" placeholder="Вставьте PGN с chess.com (с заголовками или только ходы)"></textarea>
-    <div class="row"><span class="lbl">Я играл</span>
-      <div class="seg" id="colorSeg"><button data-v="auto" class="on">Авто</button><button data-v="w">Белыми</button><button data-v="b">Чёрными</button></div>
+    <summary>Мои партии на chess.com</summary>
+    <div class="row" style="margin-top:0">
+      <input id="nick" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="Ник на chess.com">
+      <button id="reloadBtn" class="icon" aria-label="Обновить список">↻</button>
     </div>
+    <div id="ccMsg" class="msg"></div>
+    <ul id="ccGames" class="recent"></ul>
+    <button id="moreBtn" hidden style="width:100%;margin-top:6px">Показать ещё</button>
     <div class="row"><span class="lbl">Глубина</span>
       <div class="seg" id="depthSeg"><button data-v="16" class="on">16</button><button data-v="17">17</button><button data-v="18">18</button></div>
     </div>
-    <button id="goBtn" class="primary">Разобрать</button>
+    <details id="manualBox" style="margin-top:6px">
+      <summary class="k" style="cursor:pointer">Вставить PGN вручную</summary>
+      <textarea id="pgn" spellcheck="false" placeholder="Вставьте PGN (с заголовками или только ходы)" style="margin-top:8px"></textarea>
+      <div class="row"><span class="lbl">Я играл</span>
+        <div class="seg" id="colorSeg"><button data-v="auto" class="on">Авто</button><button data-v="w">Белыми</button><button data-v="b">Чёрными</button></div>
+      </div>
+      <button id="goBtn" class="primary">Разобрать</button>
+    </details>
     <div id="inputMsg" class="msg"></div>
     <div id="recentWrap" hidden>
-      <h2 style="font-size:14px;margin:14px 0 0">Последние партии</h2>
+      <h2 style="font-size:14px;margin:14px 0 0">Недавно разобранные</h2>
       <ul id="recent" class="recent"></ul>
     </div>
   </details>
@@ -199,7 +214,8 @@ setTimeout(function(){
 <script type="module">
 import { Chess } from 'https://cdn.jsdelivr.net/npm/chess.js@1.4.0/dist/esm/chess.js';
 
-const ME = 'k1t92';
+const DEFAULT_NICK = 'k1t92';
+const CC_CACHE = 'pgnReview.ccGames.v1';
 const SF = 'https://cdn.jsdelivr.net/npm/stockfish@18.0.8/bin/stockfish-18-lite-single';
 const STORE_KEY = 'pgnReview.games.v1';
 const THEME_KEY = 'pgnReview.theme';
@@ -399,8 +415,9 @@ function parsePgn(text) {
 }
 function detectColor(h) {
   const w = (h.White || '').trim().toLowerCase(), b = (h.Black || '').trim().toLowerCase();
-  if (w === ME) return 'w';
-  if (b === ME) return 'b';
+  const me = nick().toLowerCase();
+  if (w === me) return 'w';
+  if (b === me) return 'b';
   return null;
 }
 
@@ -451,10 +468,11 @@ function compactEval(e) { return e ? [Math.round(e.v * 100) / 100, e.mate, e.bes
 function expandEval(a) { return a ? { v: a[0], mate: a[1], best: a[2], pv: a[3] ? a[3].split(' ') : [], end: a[4] || undefined } : null; }
 function saveGame(g) {
   let list = store.get(STORE_KEY, []).filter(x => x.id !== g.id);
-  list.unshift({ id: g.id, t: Date.now(), pgn: g.pgn, my: g.my, colorPref: g.colorPref, depth: g.depth, h: pickHeaders(g.headers), ev: g.evals.map(compactEval) });
+  list.unshift({ id: g.id, src: g.src, t: Date.now(), pgn: g.pgn, my: g.my, colorPref: g.colorPref, depth: g.depth, h: pickHeaders(g.headers), ev: g.evals.map(compactEval) });
   list = list.slice(0, MAX_SAVED);
   while (list.length && !store.set(STORE_KEY, list)) list.pop(); // переполнение — выкидываем самые старые
   renderRecent();
+  renderCC();
 }
 function pickHeaders(h) {
   const o = {};
@@ -483,7 +501,7 @@ $('recent').addEventListener('click', e => {
 });
 
 // ---------- открыть и разобрать партию
-function openGame(pgnText, { saved = null } = {}) {
+function openGame(pgnText, { saved = null, src = null } = {}) {
   const msg = $('inputMsg'); msg.className = 'msg'; msg.textContent = '';
   let parsed;
   try { parsed = parsePgn(pgnText); }
@@ -491,13 +509,13 @@ function openGame(pgnText, { saved = null } = {}) {
   exitMode();
   stopAnalysis();
 
-  const colorPref = saved ? (saved.colorPref || saved.my) : prefs.color;
+  const colorPref = saved ? (saved.colorPref || saved.my) : src ? 'auto' : prefs.color;
   const detected = detectColor(parsed.headers);
   const my = colorPref === 'auto' ? (detected || 'w') : colorPref;
-  if (colorPref === 'auto' && !detected) toast(`Ник ${ME} не найден в заголовках — считаю, что вы играли белыми`);
+  if (colorPref === 'auto' && !detected) toast(`Ник ${nick()} не найден в заголовках — считаю, что вы играли белыми`);
 
   const depth = saved ? saved.depth : prefs.depth;
-  const g = { ...parsed, pgn: pgnText.trim(), my, colorPref, depth, evals: new Array(parsed.fens.length).fill(null) };
+  const g = { ...parsed, src: src || (saved && saved.src) || null, pgn: pgnText.trim(), my, colorPref, depth, evals: new Array(parsed.fens.length).fill(null) };
   // если эта партия уже разбиралась на такой же или большей глубине — берём сохранённые оценки
   const prevSaved = saved || store.get(STORE_KEY, []).find(x => x.id === g.id);
   if (prevSaved && prevSaved.ev.length === g.evals.length && prevSaved.depth >= depth) {
@@ -1074,6 +1092,84 @@ $('depthSeg').addEventListener('click', e => {
   setSeg('depthSeg', v); prefs.depth = +v; store.set(PREF_KEY, { ...store.get(PREF_KEY, {}), depth: +v });
 });
 $('goBtn').onclick = () => openGame($('pgn').value);
+
+// ---------- партии с chess.com (публичный API, ключ не нужен)
+function nick() { return (store.get(PREF_KEY, {}).nick || DEFAULT_NICK).trim(); }
+const CC = { games: [], archives: [], next: -1, shown: 20, loading: false };
+const TIME_CLASS = { bullet: 'Пуля', blitz: 'Блиц', rapid: 'Рапид', daily: 'Заочные', classical: 'Классика' };
+const DRAWS = ['agreed', 'repetition', 'stalemate', 'insufficient', '50move', 'timevsinsufficient'];
+function ccMsg(text, isErr) { $('ccMsg').textContent = text || ''; $('ccMsg').className = 'msg' + (isErr ? ' err' : ''); }
+async function ccJson(url) {
+  let r;
+  try { r = await fetch(url); } catch { throw new Error('нет связи с chess.com'); }
+  if (r.status === 404) throw new Error(`игрок «${nick()}» не найден`);
+  if (!r.ok) throw new Error('chess.com ответил ' + r.status);
+  return r.json();
+}
+const slim = g => ({ url: g.url, pgn: g.pgn, end_time: g.end_time, time_class: g.time_class,
+  white: { username: g.white.username, rating: g.white.rating, result: g.white.result },
+  black: { username: g.black.username, rating: g.black.rating, result: g.black.result } });
+async function loadCC(reset = true) {
+  if (CC.loading) return;
+  const name = nick().toLowerCase();
+  if (!name) { ccMsg('Введите ник на chess.com.'); return; }
+  CC.loading = true;
+  if (reset) { CC.archives = []; CC.next = -1; CC.shown = 20; }
+  ccMsg('Загружаю партии с chess.com…');
+  try {
+    if (!CC.archives.length) {
+      const a = await ccJson(`https://api.chess.com/pub/player/${encodeURIComponent(name)}/games/archives`);
+      CC.archives = a.archives || []; CC.next = CC.archives.length - 1;
+      CC.games = []; // список месяцев получен заново — собираем партии с нуля
+    }
+    // месяцы идут от свежих к старым; догружаем, пока не наберём сколько показать
+    while (CC.games.length < CC.shown && CC.next >= 0) {
+      const m = await ccJson(CC.archives[CC.next--]);
+      CC.games.push(...(m.games || []).filter(g => g.rules === 'chess' && g.pgn).sort((a, b) => b.end_time - a.end_time).map(slim));
+    }
+    store.set(CC_CACHE, { nick: name, games: CC.games.slice(0, 40) });
+    ccMsg(CC.games.length ? '' : 'Партий не найдено.');
+  } catch (e) {
+    const c = store.get(CC_CACHE, null);
+    if (reset && c && c.nick === name) CC.games = c.games;
+    ccMsg(`Не удалось обновить: ${e.message}.` + (CC.games.length ? ' Показываю сохранённый список.' : ''), true);
+  }
+  CC.loading = false;
+  renderCC();
+}
+function renderCC() {
+  const name = nick().toLowerCase();
+  const saved = new Map(store.get(STORE_KEY, []).filter(x => x.src).map(x => [x.src, x]));
+  $('ccGames').innerHTML = CC.games.slice(0, CC.shown).map((g, i) => {
+    const my = g.white.username.toLowerCase() === name ? 'w' : 'b';
+    const me = my === 'w' ? g.white : g.black, op = my === 'w' ? g.black : g.white;
+    const res = me.result === 'win' ? ['w', 'Победа'] : DRAWS.includes(me.result) ? ['d', 'Ничья'] : ['l', 'Поражение'];
+    const date = new Date(g.end_time * 1000).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' });
+    const sv = saved.get(g.url);
+    const st = sv ? (sv.ev.every(Boolean) ? ' · ✓ разобрана' : ` · разобрано ${Math.round(sv.ev.filter(Boolean).length / sv.ev.length * 100)}%`) : '';
+    return `<li><button class="open" data-i="${i}"><span class="res res-${res[0]}">${res[1]}</span><i class="cdot ${my}"></i> против ${esc(op.username)} (${op.rating})` +
+      `<span class="sub">${TIME_CLASS[g.time_class] || g.time_class} · ${esc(date)}${st}</span></button></li>`;
+  }).join('');
+  $('moreBtn').hidden = !(CC.games.length > CC.shown || CC.next >= 0);
+}
+$('ccGames').addEventListener('click', e => {
+  const b = e.target.closest('button[data-i]'); if (!b) return;
+  const g = CC.games[+b.dataset.i]; if (!g) return;
+  const sv = store.get(STORE_KEY, []).find(x => x.src === g.url);
+  openGame(g.pgn, sv ? { saved: sv } : { src: g.url });
+});
+$('moreBtn').onclick = () => { CC.shown += 20; renderCC(); loadCC(false); };
+$('reloadBtn').onclick = () => loadCC();
+$('nick').value = nick();
+$('nick').addEventListener('change', () => {
+  store.set(PREF_KEY, { ...store.get(PREF_KEY, {}), nick: $('nick').value.trim() });
+  CC.games = []; renderCC(); loadCC();
+});
+{
+  const c = store.get(CC_CACHE, null);
+  if (c && c.nick === nick().toLowerCase()) { CC.games = c.games; renderCC(); }
+  loadCC();
+}
 
 renderRecent();
 window.__appReady = true;
