@@ -1331,6 +1331,23 @@ $('nick').addEventListener('change', () => {
 history.replaceState(null, '');
 renderRecent();
 window.__appReady = true;
+
+// GitHub Pages разрешает браузеру держать страницу в кэше до 10 минут, а встроенные браузеры приложений — дольше.
+// Поэтому при открытии сверяемся со свежей копией и, если версия новее, перезагружаемся на неё (один раз на версию).
+const APP_VERSION = '5';
+if (location.protocol.startsWith('http')) {
+  fetch(location.pathname + '?check=' + Date.now(), { cache: 'no-store' })
+    .then(r => r.ok ? r.text() : '')
+    .then(t => {
+      const m = /const APP_VERSION = '([^']+)'/.exec(t);
+      if (!m || m[1] === APP_VERSION) return;
+      let tried = null; try { tried = sessionStorage.getItem('pgnReview.updateTried'); } catch {}
+      if (tried === m[1]) return;
+      try { sessionStorage.setItem('pgnReview.updateTried', m[1]); } catch {}
+      location.replace(location.pathname + '?v=' + m[1]);
+    })
+    .catch(() => {});
+}
 </script>
 </body>
 </html>
