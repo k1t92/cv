@@ -166,11 +166,11 @@ select{font:inherit;color:var(--text);background:var(--chip);border:1px solid va
     <div id="banner" class="banner" hidden></div>
     <div class="boardWrap"><svg id="board" viewBox="0 0 800 800" aria-label="Шахматная доска"></svg><div id="promo" hidden></div></div>
     <div id="nav" class="nav">
-      <button id="firstBtn" aria-label="В начало">⏮</button>
-      <button id="prevBtn" aria-label="Назад">◀</button>
+      <button id="firstBtn" aria-label="В начало"><svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" style="display:block;margin:auto"><path fill="currentColor" d="M2 2h2v12H2zM14 2v12L5 8z"/></svg></button>
+      <button id="prevBtn" aria-label="Назад"><svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" style="display:block;margin:auto"><path fill="currentColor" d="M12 2v12L3 8z"/></svg></button>
       <span id="plyLabel" class="ply"></span>
-      <button id="nextBtn" aria-label="Вперёд">▶</button>
-      <button id="lastBtn" aria-label="В конец">⏭</button>
+      <button id="nextBtn" aria-label="Вперёд"><svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" style="display:block;margin:auto"><path fill="currentColor" d="M4 2v12l9-6z"/></svg></button>
+      <button id="lastBtn" aria-label="В конец"><svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" style="display:block;margin:auto"><path fill="currentColor" d="M12 2h2v12h-2zM2 2v12l9-6z"/></svg></button>
       <button id="flipBtn" aria-label="Перевернуть доску">⇅</button>
     </div>
     <div id="info" class="card info"></div>
@@ -217,6 +217,7 @@ import { Chess } from 'https://cdn.jsdelivr.net/npm/chess.js@1.4.0/dist/esm/ches
 const DEFAULT_NICK = 'k1t92';
 const CC_CACHE = 'pgnReview.ccGames.v1';
 const SF = 'https://cdn.jsdelivr.net/npm/stockfish@18.0.8/bin/stockfish-18-lite-single';
+const LOCAL_SF = 'stockfish/stockfish-18-lite-single';
 const STORE_KEY = 'pgnReview.games.v1';
 const THEME_KEY = 'pgnReview.theme';
 const PREF_KEY = 'pgnReview.prefs';
@@ -256,31 +257,51 @@ function toast(text) {
 // ---------- Stockfish в Web Worker
 // Воркер создаётся из blob, который подгружает stockfish.js с CDN; путь к .wasm передаётся через #hash
 // (так его ищет сборка Stockfish). Работает и при открытии файла через file://.
+// Откуда брать движок: сначала копия рядом с сайтом (тот же адрес — так работает Safari на iPhone),
+// если её нет (файл открыт с диска) — с CDN через blob-воркер. Путь к .wasm сборка Stockfish берёт из #hash.
+function engineSources() {
+  const list = [];
+  if (location.protocol.startsWith('http')) {
+    list.push(() => new Worker(LOCAL_SF + '.js#' + encodeURIComponent(new URL(LOCAL_SF + '.wasm', location.href).href)));
+  }
+  list.push(() => {
+    const blob = new Blob([`importScripts(${JSON.stringify(SF + '.js')});`], { type: 'application/javascript' });
+    return new Worker(URL.createObjectURL(blob) + '#' + encodeURIComponent(SF + '.wasm'));
+  });
+  return list;
+}
+function startWorker(make, options, onLine) {
+  return new Promise((resolve, reject) => {
+    let w;
+    try { w = make(); } catch (e) { reject(e); return; }
+    let stage = 0;
+    const fail = msg => { clearTimeout(timer); w.terminate(); reject(new Error(msg)); };
+    const timer = setTimeout(() => fail('Stockfish не ответил за 60 секунд'), 60000);
+    w.onerror = e => { e.preventDefault?.(); fail(e.message || 'ошибка воркера'); };
+    w.onmessage = e => {
+      const line = String(e.data);
+      if (stage === 0 && line === 'uciok') {
+        stage = 1;
+        for (const [k, v] of Object.entries(options)) w.postMessage(`setoption name ${k} value ${v}`);
+        w.postMessage('isready');
+      } else if (stage === 1 && line === 'readyok') {
+        stage = 2; clearTimeout(timer); w.onerror = null; resolve(w);
+      } else if (stage === 2) onLine(line);
+    };
+    w.postMessage('uci');
+  });
+}
 class Engine {
   constructor(options = {}) {
     this.queue = []; this.cur = null;
-    this.ready = new Promise((resolve, reject) => {
-      let w;
-      try {
-        const blob = new Blob([`importScripts(${JSON.stringify(SF + '.js')});`], { type: 'application/javascript' });
-        w = new Worker(URL.createObjectURL(blob) + '#' + encodeURIComponent(SF + '.wasm'));
-      } catch (e) { reject(e); return; }
-      this.w = w;
-      let stage = 0;
-      const timer = setTimeout(() => reject(new Error('Stockfish не ответил за 60 секунд')), 60000);
-      w.onerror = e => { clearTimeout(timer); reject(new Error(e.message || 'ошибка воркера')); };
-      w.onmessage = e => {
-        const line = String(e.data);
-        if (stage === 0 && line === 'uciok') {
-          stage = 1;
-          for (const [k, v] of Object.entries(options)) w.postMessage(`setoption name ${k} value ${v}`);
-          w.postMessage('isready');
-        } else if (stage === 1 && line === 'readyok') {
-          stage = 2; clearTimeout(timer); resolve();
-        } else if (stage === 2) this.onLine(line);
-      };
-      w.postMessage('uci');
-    });
+    this.ready = (async () => {
+      const errors = [];
+      for (const make of engineSources()) {
+        try { this.w = await startWorker(make, options, line => this.onLine(line)); return; }
+        catch (e) { errors.push(e.message); }
+      }
+      throw new Error(errors.join('; '));
+    })();
     this.ready.catch(() => { for (const j of this.queue) j.resolve(null); this.queue = []; });
   }
   send(cmd) { this.w.postMessage(cmd); }
