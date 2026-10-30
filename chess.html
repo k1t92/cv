@@ -177,6 +177,22 @@ textarea{width:100%;min-height:120px;resize:vertical;font:13px/1.4 ui-monospace,
 
 .toast{position:fixed;left:50%;bottom:calc(24px + env(safe-area-inset-bottom));transform:translate(-50%,10px);background:var(--text);color:var(--bg);padding:10px 16px;border-radius:12px;font-size:14px;max-width:90vw;z-index:9;opacity:0;transition:opacity .2s,transform .25s var(--ease);pointer-events:none}
 .toast.on{opacity:1;transform:translate(-50%,0)}
+.tabview{padding-bottom:calc(84px + env(safe-area-inset-bottom))}
+.tabs{position:fixed;left:0;right:0;bottom:0;z-index:5;display:flex;justify-content:center;gap:4px;padding:6px 8px calc(6px + env(safe-area-inset-bottom));background:color-mix(in srgb,var(--bg) 82%,transparent);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);border-top:1px solid var(--line);transition:transform .3s var(--ease)}
+.tabs.off{transform:translateY(110%)}
+.tabs button{flex:1;max-width:180px;background:none;display:flex;flex-direction:column;align-items:center;gap:2px;font-size:11.5px;padding:6px 4px;color:var(--muted)}
+.tabs button.on{color:var(--accent)}
+.cats{display:grid;gap:10px;padding:4px 12px 0}
+.cat{display:block;width:100%;text-align:left;background:var(--surface);border-radius:16px;padding:14px 16px}
+.cat b{display:block;font-size:16.5px;font-weight:600}
+.cat span{display:block;color:var(--muted);font-size:13.5px;margin-top:2px}
+.cbar{display:block;height:4px;border-radius:2px;background:var(--surface-2);margin-top:10px;overflow:hidden}
+.cbar i{display:block;height:100%;background:var(--good);border-radius:2px;transition:width .5s var(--ease)}
+.status{margin:0 12px 10px;padding:12px 14px;border-radius:16px;background:var(--surface);min-height:48px}
+.status .big{font-size:28px;font-weight:700;letter-spacing:.02em;margin-right:6px;vertical-align:-2px}
+#solveBtns{display:grid}
+#board .mk-sel{fill:rgba(59,111,216,.45)} #board .mk-ok{fill:rgba(43,154,88,.55)} #board .mk-bad{fill:rgba(214,52,60,.45)}
+#board .mk-miss{fill:none;stroke:#e0313a;stroke-width:7}
 select{font:inherit;color:var(--text);background:var(--surface-2);border:0;border-radius:10px;padding:8px}
 @media (prefers-reduced-motion: reduce){
   *,*::before,*::after{animation:none!important;transition:none!important}
@@ -184,7 +200,7 @@ select{font:inherit;color:var(--text);background:var(--surface-2);border:0;borde
 </style>
 </head>
 <body>
-<section id="listView" class="view">
+<section id="listView" class="view tabview">
   <header class="bar">
     <h1>Партии</h1>
     <button id="themeBtn" class="ghost icon" aria-label="Сменить тему"><svg class="ico" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="M12 4a8 8 0 0 1 0 16z" fill="currentColor"/></svg></button>
@@ -223,12 +239,12 @@ select{font:inherit;color:var(--text);background:var(--surface-2);border:0;borde
   <div id="progress" class="progress"><div class="pbar"><i id="progBar"></i></div><span id="progText"></span></div>
   <div id="banner" class="banner" hidden></div>
   <div class="evalbar"><i id="evalFill"></i></div>
-  <div id="boardWrap" class="boardWrap" aria-label="Шахматная доска">
+  <div id="gameSlot"><div id="boardWrap" class="boardWrap" aria-label="Шахматная доска">
     <svg id="board" class="layer" viewBox="0 0 800 800"></svg>
     <div id="pieces"></div>
     <svg id="overlay" class="layer" viewBox="0 0 800 800"></svg>
     <div id="promo" hidden></div>
-  </div>
+  </div></div>
   <div id="moves" class="strip"></div>
   <div id="nav" class="nav">
     <button id="firstBtn" aria-label="В начало"><svg class="ico" viewBox="0 0 24 24"><path d="M17 6l-6 6 6 6M7 6v12"/></svg></button>
@@ -251,6 +267,33 @@ select{font:inherit;color:var(--text);background:var(--surface-2);border:0;borde
     <ul id="notTaken" class="rows"></ul>
   </div>
 </section>
+<section id="tasksView" class="view tabview" hidden>
+  <header class="bar"><h1>Задачи</h1></header>
+  <div id="tasksMsg" class="msg"></div>
+  <div id="taskCats" class="cats"></div>
+</section>
+
+<section id="trainView" class="view tabview" hidden>
+  <header class="bar"><h1>Тренировка</h1></header>
+  <div id="trainCats" class="cats"></div>
+</section>
+
+<section id="solveView" class="view" hidden>
+  <header class="bar">
+    <button id="solveBack" class="ghost icon" aria-label="Назад"><svg class="ico" viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></button>
+    <div id="solveTitle" class="title"></div>
+    <button id="solveFlip" class="ghost icon" aria-label="Перевернуть доску"><svg class="ico" viewBox="0 0 24 24"><path d="M7 20V4M4 7l3-3 3 3M17 4v16M14 17l3 3 3-3"/></svg></button>
+  </header>
+  <div id="solveStatus" class="status"></div>
+  <div id="solveSlot"></div>
+  <div id="solveBtns" class="actions"></div>
+</section>
+
+<nav id="tabs" class="tabs">
+  <button data-tab="list" class="on"><svg class="ico" viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h10"/></svg>Партии</button>
+  <button data-tab="tasks"><svg class="ico" viewBox="0 0 24 24"><path d="M12 3l2.6 5.6 6 .7-4.5 4.1 1.2 6L12 16.4 6.7 19.4l1.2-6L3.4 9.3l6-.7z"/></svg>Задачи</button>
+  <button data-tab="train"><svg class="ico" viewBox="0 0 24 24"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>Тренировка</button>
+</nav>
 <div id="toast" class="toast" role="status"></div>
 
 <script>
@@ -578,20 +621,45 @@ $('recent').addEventListener('click', e => {
 });
 
 // ---------- экраны
+// Вкладки: list / tasks / train; поверх них — экран партии (game) и экран тренировки (solve)
+const VIEWS = { list: 'listView', tasks: 'tasksView', train: 'trainView', game: 'gameView', solve: 'solveView' };
+S.screen = 'list'; S.tab = 'list';
 function showView(name, back) {
-  const on = $(name === 'game' ? 'gameView' : 'listView'), off = $(name === 'game' ? 'listView' : 'gameView');
+  const on = $(VIEWS[name]);
+  S.screen = name;
+  $('tabs').classList.toggle('off', name === 'game' || name === 'solve');
+  for (const b of $('tabs').children) b.classList.toggle('on', b.dataset.tab === name);
   if (!on.hidden) return;
-  off.hidden = true; on.hidden = false;
+  for (const id of Object.values(VIEWS)) if (id !== VIEWS[name]) $(id).hidden = true;
+  on.hidden = false;
   on.classList.remove('enter', 'enter-back'); void on.offsetWidth;
   on.classList.add(back ? 'enter-back' : 'enter');
   window.scrollTo(0, 0);
 }
+function renderTab() {
+  if (S.tab === 'tasks') renderTasks();
+  else if (S.tab === 'train') renderTrain();
+  else { renderCC(); renderRecent(); }
+}
+$('tabs').addEventListener('click', e => {
+  const t = e.target.closest('[data-tab]')?.dataset.tab; if (!t || t === S.screen) return;
+  S.tab = t; showView(t); renderTab();
+});
+// доска одна; переносим её туда, где она нужна
+function mountBoard(slot) {
+  if ($('boardWrap').parentElement.id === slot) return;
+  $(slot).appendChild($('boardWrap'));
+  resetPieces();
+}
 $('backBtn').onclick = () => { if (history.state && history.state.game) history.back(); else toList(); };
-window.addEventListener('popstate', () => { if (!$('gameView').hidden) toList(); });
+window.addEventListener('popstate', () => {
+  if (S.screen === 'game') toList();
+  else if (S.screen === 'solve') leaveSolve();
+});
 function toList() {
   exitMode();
-  renderCC(); renderRecent();
-  showView('list', true);
+  showView(S.tab, true);
+  renderTab();
 }
 
 // ---------- открыть и разобрать партию
@@ -623,6 +691,7 @@ function openGame(pgnText, { saved = null, src = null } = {}) {
   }
   history.pushState({ game: 1 }, '');
   showView('game');
+  mountBoard('gameSlot');
   refresh(true);
 }
 
@@ -743,6 +812,7 @@ function xyToSq(x, y) {
   return String.fromCharCode(97 + f) + (r + 1);
 }
 function boardView() {
+  if (S.screen === 'solve') return solveView();
   const g = S.g;
   if (S.mode === 'puzzle') return { fen: PZ.ch.fen(), last: PZ.last, best: PZ.showBest ? g.evals[PZ.k].best : null };
   if (S.mode === 'play') return { fen: PL.ch.fen(), last: PL.last, best: null };
@@ -752,7 +822,7 @@ function boardView() {
 }
 function drawBoard() {
   const v = boardView();
-  const ch = new Chess(v.fen);
+  const ch = v.fen ? new Chess(v.fen) : null;
   let s = '';
   for (let r = 0; r < 8; r++) for (let f = 0; f < 8; f++) {
     const sq = String.fromCharCode(97 + f) + (r + 1);
@@ -761,13 +831,18 @@ function drawBoard() {
     s += `<rect x="${x}" y="${y}" width="100" height="100" class="${dark ? 'd' : 'l'}"/>`;
     const leftCol = S.orient === 'w' ? f === 0 : f === 7;
     const bottomRow = S.orient === 'w' ? r === 0 : r === 7;
+    if (v.noCoords) continue;
     if (leftCol) s += `<text x="${x + 5}" y="${y + 20}" class="${dark ? 'cd' : 'cl'}">${r + 1}</text>`;
     if (bottomRow) s += `<text x="${x + 94}" y="${y + 94}" text-anchor="end" class="${dark ? 'cd' : 'cl'}">${String.fromCharCode(97 + f)}</text>`;
   }
   const hl = (sq, cls) => { const [x, y] = sqXY(sq); return `<rect x="${x}" y="${y}" width="100" height="100" class="${cls}"/>`; };
   if (v.last) s += hl(v.last.from, 'last') + hl(v.last.to, 'last');
   if (S.sel) s += hl(S.sel, 'sel');
-  if (ch.inCheck()) {
+  for (const mk of v.marks || []) {
+    const [x, y] = sqXY(mk.sq);
+    s += mk.cls === 'mk-miss' ? `<rect x="${x + 4}" y="${y + 4}" width="92" height="92" rx="8" class="mk-miss"/>` : `<rect x="${x}" y="${y}" width="100" height="100" class="${mk.cls}"/>`;
+  }
+  if (ch && ch.inCheck()) {
     const kingSq = findKing(ch, ch.turn());
     if (kingSq) { const [x, y] = sqXY(kingSq); s += `<circle cx="${x + 50}" cy="${y + 50}" r="46" fill="rgba(230,40,40,.5)"/>`; }
   }
@@ -778,7 +853,7 @@ function drawBoard() {
   placePieces(ch);
 
   let o = '';
-  if (S.sel) {
+  if (S.sel && ch) {
     o += '<g>';
     for (const m of ch.moves({ square: S.sel, verbose: true })) {
       const [x, y] = sqXY(m.to);
@@ -798,7 +873,7 @@ function resetPieces() { PIECES = []; $('pieces').innerHTML = ''; }
 function placePieces(ch) {
   const box = $('pieces');
   const want = [];
-  ch.board().forEach((row, i) => row.forEach((p, j) => { if (p) want.push({ t: p.type, c: p.color, sq: String.fromCharCode(97 + j) + (8 - i) }); }));
+  if (ch) ch.board().forEach((row, i) => row.forEach((p, j) => { if (p) want.push({ t: p.type, c: p.color, sq: String.fromCharCode(97 + j) + (8 - i) }); }));
   if (!PIECES.length) box.classList.add('instant');
   const old = PIECES, used = new Set(), next = [], rest = [];
   for (const w of want) {
@@ -1031,24 +1106,34 @@ function renderActions() {
 }
 
 // ---------- ходы пользователя на доске (тренировка и игра)
-function activeChess() { return S.mode === 'puzzle' ? PZ.ch : S.mode === 'play' ? PL.ch : null; }
 function canUserMove() {
   if (S.mode === 'puzzle') return PZ.state === 'ask' || PZ.state === 'wrong';
   if (S.mode === 'play') return !PL.busy && !PL.ch.isGameOver() && PL.ch.turn() === PL.human;
   return false;
 }
+// кто сейчас принимает ходы с доски
+function moveCtx() {
+  if (S.screen === 'solve') {
+    if (T.kind === 'puzzle' && puzzleCanMove()) return { ch: T.ch, done: puzzleMove };
+    if (T.kind === 'endgame' && endgameCanMove()) return { ch: T.ch, done: endgameMove };
+    return null;
+  }
+  if (S.mode === 'puzzle' && canUserMove()) return { ch: PZ.ch, done: onPuzzleMove };
+  if (S.mode === 'play' && canUserMove()) return { ch: PL.ch, done: onPlayMove };
+  return null;
+}
 async function onSquare(sq) {
-  const ch = activeChess();
-  if (!ch || !canUserMove()) return;
-  const piece = ch.get(sq);
+  if (S.screen === 'solve' && (coordsTap(sq) || hangingTap(sq))) return;
+  const ctx = moveCtx();
+  if (!ctx) return;
+  const ch = ctx.ch, piece = ch.get(sq);
   if (S.sel) {
     const cands = ch.moves({ square: S.sel, verbose: true }).filter(m => m.to === sq);
     if (cands.length) {
       let promotion;
       if (cands.some(m => m.promotion)) { promotion = await askPromotion(ch.turn()); if (!promotion) { S.sel = null; drawBoard(); return; } }
       const from = S.sel; S.sel = null;
-      const m = ch.move({ from, to: sq, promotion });
-      if (S.mode === 'puzzle') onPuzzleMove(m); else onPlayMove(m);
+      ctx.done(ch.move({ from, to: sq, promotion }));
       return;
     }
   }
@@ -1231,6 +1316,401 @@ function playUndo() {
   drawBoard(); renderPlay();
 }
 
+// ---------- задачи и тренировки
+const PROG_KEY = 'pgnReview.tasks.v1';
+const prog = () => Object.assign({ solved: {}, best: {}, eg: {} }, store.get(PROG_KEY, {}));
+function saveProg(fn) { const p = prog(); fn(p); store.set(PROG_KEY, p); }
+const shuffle = a => { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+const sideName = c => c === 'w' ? 'белых' : 'чёрных';
+
+let BANK = null;
+async function loadBank() {
+  if (BANK) return BANK;
+  const r = await fetch('chess-puzzles.json');
+  if (!r.ok) throw new Error('файл задач не найден');
+  BANK = (await r.json()).map(p => ({ ...p, id: hash(p.f + p.s), s: p.s.split(' ') }));
+  return BANK;
+}
+const TASK_CATS = [
+  { t: 'm2', name: 'Мат в 2 хода' },
+  { t: 'm3', name: 'Мат в 3 хода' },
+  { t: 'm4', name: 'Мат в 4 хода' },
+  { t: 'fork', name: 'Вилки', sub: 'Найдите ход, который нападает на две фигуры' },
+  { t: 'tac', name: 'Тактика', sub: 'Выиграйте материал' },
+];
+function catCard(key, title, sub, done, total) {
+  const pct = total ? Math.round(done / total * 100) : 0;
+  return `<button class="cat" data-c="${key}"><b>${esc(title)}</b><span>${esc(sub)}</span>${total ? `<i class="cbar"><i style="width:${pct}%"></i></i>` : ''}</button>`;
+}
+async function renderTasks() {
+  let bank;
+  try { bank = await loadBank(); $('tasksMsg').textContent = ''; }
+  catch (e) { $('taskCats').innerHTML = ''; $('tasksMsg').textContent = 'Задачи не загрузились: ' + e.message; return; }
+  const p = prog();
+  let h = '';
+  for (const c of TASK_CATS) {
+    const items = bank.filter(x => x.t === c.t); if (!items.length) continue;
+    const done = items.filter(x => p.solved[x.id] === 1).length;
+    h += catCard(c.t, c.name, `${c.sub ? c.sub + ' · ' : ''}решено ${done} из ${items.length}`, done, items.length);
+  }
+  h += catCard('marathon', 'Марафон', `Задачи подряд до первой ошибки · рекорд ${p.best.marathon || 0}`, 0, 0);
+  $('taskCats').innerHTML = h;
+}
+$('taskCats').addEventListener('click', async e => {
+  const c = e.target.closest('[data-c]')?.dataset.c; if (!c) return;
+  const bank = await loadBank(), p = prog();
+  if (c === 'marathon') {
+    startPuzzles('Марафон', shuffle(bank.slice()), { marathon: true });
+  } else {
+    const items = bank.filter(x => x.t === c);
+    const fresh = shuffle(items.filter(x => p.solved[x.id] !== 1)), old = shuffle(items.filter(x => p.solved[x.id] === 1));
+    startPuzzles(TASK_CATS.find(x => x.t === c).name, [...fresh, ...old]);
+  }
+});
+
+// Ошибки из всех разобранных партий — те же позиции, что в «Найди ход сам», только собранные вместе
+function mistakeItems() {
+  const out = [];
+  for (const sv of store.get(STORE_KEY, [])) {
+    if (!sv.ev.every(Boolean)) continue;
+    let parsed; try { parsed = parsePgn(sv.pgn); } catch { continue; }
+    const g = { ...parsed, my: sv.my, evals: sv.ev.map(expandEval) };
+    if (g.evals.length !== g.fens.length) continue;
+    for (const k of derive(g).missed) {
+      const e = g.evals[k]; if (!e.best) continue;
+      const intro = k > 0 ? [g.moves[k - 1].uci] : [];
+      out.push({ id: sv.id + ':' + k, t: 'mine', f: g.fens[k - intro.length], s: [...intro, e.best], ev: e, played: g.moves[k].san, after: g.evals[k + 1] });
+    }
+  }
+  return out;
+}
+
+const ENDGAMES = [
+  { f: '8/8/8/4k3/8/8/8/3QK3 w - - 0 1', name: 'Ферзь против короля', goal: 'mate', note: 'Поставьте мат. Прижимайте короля к краю, не давая пата.' },
+  { f: '8/8/8/3k4/8/8/8/R3K3 w - - 0 1', name: 'Ладья против короля', goal: 'mate', note: 'Поставьте мат ладьёй и королём.' },
+  { f: '8/8/8/4k3/8/8/8/2B1KB2 w - - 0 1', name: 'Два слона', goal: 'mate', note: 'Мат двумя слонами — только в углу.' },
+  { f: '4k3/8/4K3/4P3/8/8/8/8 w - - 0 1', name: 'Король впереди пешки', goal: 'promote', note: 'Проведите пешку в ферзи.' },
+  { f: '1K1k4/1P6/8/8/8/8/r7/2R5 w - - 0 1', name: 'Позиция Лусены', goal: 'promote', note: 'Проведите пешку в ферзи: постройте «мост» ладьёй.' },
+  { f: '4k3/1R6/7r/3KP3/8/8/8/8 b - - 0 1', name: 'Защита Филидора', goal: 'hold', note: 'Сделайте ничью: продержитесь 25 ходов. Ладья — на 6-й горизонтали, пока пешка не пойдёт вперёд.' },
+];
+
+function renderTrain() {
+  const p = prog(), mine = mistakeItems();
+  const mineDone = mine.filter(x => p.solved[x.id] === 1).length;
+  const egDone = ENDGAMES.filter((x, i) => p.eg[i]).length;
+  $('trainCats').innerHTML =
+    catCard('mine', 'Мои ошибки', mine.length ? `Позиции из ваших партий · решено ${mineDone} из ${mine.length}` : 'Появятся, когда вы разберёте партии', mineDone, mine.length) +
+    catCard('endgame', 'Эндшпиль против движка', `Базовые окончания · пройдено ${egDone} из ${ENDGAMES.length}`, egDone, ENDGAMES.length) +
+    catCard('hanging', 'Что висит?', `Отметьте все фигуры, которые можно взять даром · рекорд ${p.best.hanging || 0} подряд`, 0, 0) +
+    catCard('coords', 'Координаты', `Найдите клетку за 30 секунд · рекорд ${p.best.coords || 0}`, 0, 0);
+}
+$('trainCats').addEventListener('click', async e => {
+  const c = e.target.closest('[data-c]')?.dataset.c; if (!c) return;
+  if (c === 'mine') {
+    const items = mistakeItems(); if (!items.length) { toast('Сначала разберите хотя бы одну партию'); return; }
+    const p = prog();
+    startPuzzles('Мои ошибки', [...shuffle(items.filter(x => p.solved[x.id] !== 1)), ...shuffle(items.filter(x => p.solved[x.id] === 1))]);
+  } else if (c === 'endgame') startEndgame(Math.max(0, ENDGAMES.findIndex((x, i) => !prog().eg[i])));
+  else if (c === 'coords') startCoords();
+  else if (c === 'hanging') {
+    try { await loadBank(); } catch { toast('Не удалось загрузить позиции'); return; }
+    startHanging();
+  }
+});
+
+// ---------- экран решения: общий для всех тренировок
+let T = { kind: null };
+function clearT() { for (const t of T.timers || []) { clearTimeout(t); clearInterval(t); } if (playEngine) playEngine.stopAll(); }
+function later(fn, ms) { const id = setTimeout(fn, ms); (T.timers = T.timers || []).push(id); return id; }
+function enterSolve(state) {
+  clearT();
+  T = { timers: [], marks: [], last: null, ch: null, ...state };
+  S.sel = null;
+  if ($('solveView').hidden) { history.pushState({ solve: 1 }, ''); showView('solve'); }
+  mountBoard('solveSlot');
+}
+function leaveSolve() { clearT(); T = { kind: null }; S.sel = null; showView(S.tab, true); renderTab(); }
+$('solveBack').onclick = () => { if (history.state && history.state.solve) history.back(); else leaveSolve(); };
+$('solveFlip').onclick = () => { S.orient = S.orient === 'w' ? 'b' : 'w'; drawBoard(); };
+function renderSolve() {
+  $('solveTitle').innerHTML = `<b>${esc(T.title)}</b><span>${T.sub || ''}</span>`;
+  $('solveStatus').innerHTML = T.status || '';
+  $('solveBtns').innerHTML = (T.btns || []).map(([a, label, primary]) => `<button data-a="${a}"${primary ? ' class="primary"' : ''}>${label}</button>`).join('');
+  $('solveBtns').style.gridTemplateColumns = `repeat(${Math.max(1, (T.btns || []).length)}, 1fr)`;
+}
+$('solveBtns').addEventListener('click', e => { const a = e.target.closest('[data-a]')?.dataset.a; if (a && T.act) T.act(a); });
+function solveView() { return { fen: T.ch ? T.ch.fen() : null, last: T.last, best: T.best || null, marks: T.marks, noCoords: T.noCoords }; }
+const lastOf = m => m ? { from: m.from, to: m.to } : null;
+
+// --- задачи (мат, тактика, мои ошибки)
+function startPuzzles(title, items, opts = {}) {
+  enterSolve({ kind: 'puzzle', title, items, i: 0, streak: 0, score: 0, marathon: !!opts.marathon, act: puzzleAct });
+  loadPuzzleItem(0);
+}
+function puzzleTask(it) {
+  if (/^m\d$/.test(it.t)) return `Мат в ${it.t[1]} хода`;
+  if (it.t === 'fork') return 'Найдите вилку';
+  if (it.t === 'tac') return 'Выиграйте материал';
+  return 'Найдите лучший ход';
+}
+function loadPuzzleItem(i) {
+  if (i >= T.items.length) {
+    T.ch = null; T.last = null; T.best = null; T.marks = [];
+    T.status = T.marathon ? `<b>Вы решили все задачи подряд: ${T.score}</b>` : '<b>Все задачи раздела пройдены</b>';
+    T.btns = [['back', 'К разделам', true]];
+    resetPieces(); drawBoard(); renderSolve(); return;
+  }
+  const it = T.items[i];
+  Object.assign(T, { i, it, step: 0, failed: false, done: false, best: null, marks: [], last: null, ch: new Chess(it.f) });
+  const introLen = it.t === 'mine' ? it.s.length - 1 : 1; // ход соперника, после которого задача начинается
+  T.solver = introLen % 2 ? (T.ch.turn() === 'w' ? 'b' : 'w') : T.ch.turn();
+  S.orient = T.solver;
+  T.sub = T.marathon ? `решено подряд: ${T.score}` : `${i + 1} из ${T.items.length}`;
+  T.status = `<span class="sub">Ход ${sideName(T.solver)}</span> · <b>${puzzleTask(it)}</b>`;
+  T.btns = T.marathon ? [['exit', 'Закончить']] : [['hint', 'Подсказка'], ['show', 'Решение'], ['next', 'Пропустить']];
+  T.state = 'intro';
+  resetPieces(); drawBoard(); renderSolve();
+  later(() => {
+    for (let k = 0; k < introLen; k++) T.last = lastOf(tryMove(T.ch, it.s[T.step++]));
+    T.state = 'ask'; drawBoard();
+  }, 550);
+}
+function puzzleCanMove() { return T.kind === 'puzzle' && T.state === 'ask' && T.ch && T.ch.turn() === T.solver; }
+async function puzzleMove(m) {
+  const it = T.it, u = m.from + m.to + (m.promotion || '');
+  T.last = lastOf(m); T.marks = []; T.best = null;
+  drawBoard();
+  const isMate = /^m\d$/.test(it.t);
+  const finalStep = T.step === it.s.length - 1;
+  let ok = u === it.s[T.step] || (isMate && finalStep && T.ch.isCheckmate());
+  let note = '';
+  if (!ok && it.t === 'mine') {
+    T.state = 'checking'; T.status = '<span class="sub">Проверяю…</span>'; renderSolve();
+    let after = terminalEval(T.ch.fen());
+    if (!after) { const r = await getEngine().analyse(T.ch.fen(), 'depth 14', { priority: true }); after = r ? toEval(r, T.ch.fen()) : null; }
+    if (T.it !== it) return;
+    const s = T.solver === 'w' ? 1 : -1;
+    if (after) {
+      const loss = Math.max(0, clamp(s * it.ev.v) - clamp(s * after.v));
+      if (loss <= 0.3) ok = true;
+      else note = `−${fmtLoss(loss)}`;
+    }
+  }
+  if (!ok) {
+    T.failed = true; T.state = 'wrong';
+    if (T.marathon) {
+      T.state = 'over';
+      saveProg(p => { p.best.marathon = Math.max(p.best.marathon || 0, T.score); });
+      T.status = `<span class="bad">Не то.</span> Решено подряд: <b>${T.score}</b>${T.score >= (prog().best.marathon || 0) && T.score ? ' — рекорд' : ''}`;
+      T.btns = [['show', 'Решение'], ['restart', 'Ещё раз', true]];
+      renderSolve(); return;
+    }
+    T.status = `<span class="bad">Не то${note ? ' (' + note + ')' : ''}.</span> <span class="sub">Попробуйте ещё</span>`;
+    renderSolve();
+    later(() => { T.ch.undo(); const h = T.ch.history({ verbose: true }); T.last = lastOf(h[h.length - 1]); T.state = 'ask'; drawBoard(); }, 750);
+    return;
+  }
+  T.step++;
+  const solvedNow = T.step >= it.s.length || it.t === 'tac' || it.t === 'fork' || it.t === 'mine';
+  if (solvedNow) { puzzleSolved(); return; }
+  T.state = 'reply'; T.status = '<span class="ok">Верно</span> <span class="sub">— продолжайте</span>'; renderSolve();
+  later(() => { T.last = lastOf(tryMove(T.ch, it.s[T.step++])); T.state = 'ask'; drawBoard(); }, 450);
+}
+function puzzleSolved() {
+  const it = T.it;
+  T.state = 'done'; T.done = true;
+  saveProg(p => { if (!T.failed) p.solved[it.id] = 1; else if (p.solved[it.id] !== 1) p.solved[it.id] = 0; });
+  if (T.marathon) {
+    T.score++;
+    T.status = `<span class="ok">Верно</span> · решено подряд: <b>${T.score}</b>`;
+    renderSolve(); later(() => loadPuzzleItem(T.i + 1), 700); return;
+  }
+  T.status = T.failed ? '<span class="ok">Решено</span> <span class="sub">со второй попытки</span>' : '<span class="ok">Верно!</span>';
+  if (it.t === 'mine') T.status += ` <span class="sub">В партии было ${esc(ru(it.played))}, ${fmtEval(it.after)}</span>`;
+  T.btns = [['retry', 'Заново'], ['next', 'Дальше', true]];
+  renderSolve();
+  // для тактики доигрываем вариант, чтобы было видно, что выигрывается
+  if (it.t === 'tac' || it.t === 'fork') {
+    let k = T.step;
+    const step = () => { if (T.it !== it || k >= it.s.length) return; const m = tryMove(T.ch, it.s[k++]); if (!m) return; T.last = lastOf(m); drawBoard(); later(step, 700); };
+    later(step, 600);
+  }
+}
+function puzzleAct(a) {
+  const it = T.it;
+  if (a === 'back' || a === 'exit') return leaveSolve();
+  if (a === 'restart') return startPuzzles(T.title, shuffle(T.items.slice()), { marathon: true });
+  if (a === 'next') return loadPuzzleItem(T.i + 1);
+  if (a === 'retry') return loadPuzzleItem(T.i);
+  if (a === 'hint' && T.state === 'ask') {
+    T.failed = true;
+    const from = it.s[T.step].slice(0, 2);
+    T.marks = [{ sq: from, cls: 'mk-sel' }]; drawBoard();
+    return;
+  }
+  if (a === 'show') {
+    T.failed = true; T.state = 'show'; clearT(); T.timers = [];
+    const play = () => {
+      if (T.it !== it || T.step >= it.s.length) { T.status = '<span class="sub">Решение показано</span>'; T.btns = T.marathon ? [['restart', 'Ещё раз', true]] : [['retry', 'Заново'], ['next', 'Дальше', true]]; renderSolve(); return; }
+      const fen = T.ch.fen(); const u = it.s[T.step];
+      T.best = u; drawBoard();
+      later(() => { if (T.ch.fen() !== fen) return; T.best = null; T.last = lastOf(tryMove(T.ch, u)); T.step++; drawBoard(); later(play, 650); }, 650);
+    };
+    saveProg(p => { if (p.solved[it.id] !== 1) p.solved[it.id] = 0; });
+    play();
+  }
+}
+
+// --- эндшпиль против движка
+function startEndgame(i) {
+  const e = ENDGAMES[i];
+  enterSolve({ kind: 'endgame', title: e.name, i, e, act: endgameAct, moves: 0, over: false });
+  T.ch = new Chess(e.f); T.human = T.ch.turn(); S.orient = T.human;
+  T.sub = `${i + 1} из ${ENDGAMES.length}`;
+  T.status = `<span class="sub">${esc(e.note)}</span>`;
+  T.btns = [['undo', 'Ход назад'], ['restart', 'Заново'], ['next', 'Дальше']];
+  if (!playEngine) playEngine = new Engine({ Hash: 16 });
+  resetPieces(); drawBoard(); renderSolve();
+}
+function endgameCanMove() { return T.kind === 'endgame' && !T.over && !T.busy && T.ch.turn() === T.human; }
+function endgameFinish(win, text) {
+  T.over = true;
+  if (win) saveProg(p => { p.eg[T.i] = 1; });
+  T.status = `<span class="${win ? 'ok' : 'bad'}">${text}</span>`;
+  T.btns = [['restart', 'Заново'], ['next', 'Дальше', true]];
+  renderSolve();
+}
+async function endgameMove(m) {
+  const e = T.e, ch = T.ch;
+  T.last = lastOf(m); T.moves++; drawBoard();
+  if (ch.isCheckmate()) return endgameFinish(true, `Мат за ${T.moves} ${plural(T.moves, ['ход', 'хода', 'ходов'])}`);
+  if (ch.isDraw()) return endgameFinish(e.goal === 'hold', e.goal === 'hold' ? 'Ничья — задача решена' : ch.isStalemate() ? 'Пат — это ничья, задача не решена' : 'Ничья — задача не решена');
+  if (e.goal === 'hold' && T.moves >= 25) return endgameFinish(true, 'Вы продержались 25 ходов — ничья');
+  T.busy = true; T.status = `<span class="sub">Ходов: ${T.moves} · движок думает…</span>`; renderSolve();
+  const promotedSq = m.promotion ? m.to : null;
+  later(async () => {
+    const fen = ch.fen();
+    try { await playEngine.ready; } catch { T.busy = false; T.status = '<span class="bad">Движок не запустился</span>'; renderSolve(); return; }
+    playEngine.send('setoption name Skill Level value 20');
+    const r = await playEngine.analyse(fen, 'movetime 600');
+    if (T.kind !== 'endgame' || T.ch !== ch || ch.fen() !== fen) return;
+    T.busy = false;
+    const reply = r && r.best && tryMove(ch, r.best);
+    if (reply) T.last = lastOf(reply);
+    drawBoard();
+    if (ch.isCheckmate()) return endgameFinish(false, 'Вам поставили мат');
+    if (ch.isDraw()) return endgameFinish(e.goal === 'hold', e.goal === 'hold' ? 'Ничья — задача решена' : 'Ничья — задача не решена');
+    // движок считает позицию для себя выигранной (или наоборот — для вас уже ничьей)
+    const engSide = r && (r.type === 'mate' ? (r.n > 0 ? 99 : -99) : r.n / 100);
+    if (e.goal === 'hold' && engSide >= 5) return endgameFinish(false, 'Позиция проиграна');
+    if (e.goal !== 'hold' && engSide !== null && engSide > -1.5) return endgameFinish(false, 'Выигрыш упущен');
+    if (promotedSq && ch.get(promotedSq) && ch.get(promotedSq).color === T.human) return endgameFinish(true, 'Пешка прошла в ферзи');
+    T.status = `<span class="sub">Ходов: ${T.moves}</span>`; renderSolve();
+  }, 300);
+}
+function endgameAct(a) {
+  if (a === 'restart') return startEndgame(T.i);
+  if (a === 'next') return startEndgame((T.i + 1) % ENDGAMES.length);
+  if (a === 'undo' && !T.busy && !T.over && T.ch.history().length) {
+    T.ch.undo(); if (T.ch.turn() !== T.human && T.ch.history().length) T.ch.undo();
+    T.moves = Math.max(0, T.moves - 1);
+    const h = T.ch.history({ verbose: true }); T.last = lastOf(h[h.length - 1]);
+    S.sel = null; drawBoard();
+  }
+}
+
+// --- координаты
+const ALL_SQ = Array.from({ length: 64 }, (_, i) => String.fromCharCode(97 + i % 8) + (Math.floor(i / 8) + 1));
+function startCoords() {
+  enterSolve({ kind: 'coords', title: 'Координаты', act: coordsAct, noCoords: true, running: false });
+  S.orient = 'w'; T.sub = 'доску можно перевернуть';
+  T.status = 'Нажмите «Старт» и находите названную клетку. 30 секунд.';
+  T.btns = [['start', 'Старт', true]];
+  resetPieces(); drawBoard(); renderSolve();
+}
+function coordsAct(a) {
+  if (a !== 'start') return;
+  Object.assign(T, { running: true, score: 0, miss: 0, end: Date.now() + 30000, target: ALL_SQ[Math.floor(Math.random() * 64)], marks: [] });
+  T.btns = [];
+  const tick = () => {
+    const left = Math.max(0, Math.ceil((T.end - Date.now()) / 1000));
+    if (!left) return coordsOver();
+    T.status = `<span class="big">${T.target}</span> <span class="sub">${left} с · найдено ${T.score}</span>`; renderSolve();
+  };
+  tick(); T.timers.push(setInterval(tick, 250));
+}
+function coordsTap(sq) {
+  if (T.kind !== 'coords') return false;
+  if (!T.running) return true;
+  const ok = sq === T.target;
+  if (ok) T.score++; else T.miss++;
+  T.marks = [{ sq, cls: ok ? 'mk-ok' : 'mk-bad' }];
+  if (!ok) T.marks.push({ sq: T.target, cls: 'mk-miss' });
+  drawBoard();
+  if (ok) { let n; do n = ALL_SQ[Math.floor(Math.random() * 64)]; while (n === T.target); T.target = n; }
+  later(() => { T.marks = []; drawBoard(); }, 280);
+  return true;
+}
+function coordsOver() {
+  clearT(); T.timers = []; T.running = false;
+  const rec = T.score > (prog().best.coords || 0);
+  if (rec) saveProg(p => { p.best.coords = T.score; });
+  T.status = `Найдено <b>${T.score}</b>${T.miss ? `, ошибок ${T.miss}` : ''}${rec ? ' — рекорд' : ''}`;
+  T.btns = [['start', 'Ещё раз', true]];
+  renderSolve();
+}
+
+// --- что висит: фигура под боем без защиты или под боем более дешёвой фигуры
+function hangingSet(ch) {
+  const out = new Set();
+  ch.board().forEach((row, i) => row.forEach((p, j) => {
+    if (!p || p.type === 'k') return;
+    const sq = String.fromCharCode(97 + j) + (8 - i), enemy = p.color === 'w' ? 'b' : 'w';
+    const att = ch.attackers(sq, enemy); if (!att.length) return;
+    const defended = ch.attackers(sq, p.color).length > 0;
+    const cheapest = Math.min(...att.map(a => ({ p: 1, n: 3, b: 3, r: 5, q: 9, k: 100 })[ch.get(a).type]));
+    if (!defended || cheapest < ({ p: 1, n: 3, b: 3, r: 5, q: 9 })[p.type]) out.add(sq);
+  }));
+  return out;
+}
+function startHanging() {
+  // позиции из задач — сразу после хода соперника, как в жизни
+  const pool = shuffle(BANK.map(p => { const ch = new Chess(p.f); tryMove(ch, p.s[0]); return ch.fen(); }))
+    .filter(f => hangingSet(new Chess(f)).size <= 4);
+  enterSolve({ kind: 'hanging', title: 'Что висит?', act: hangingAct, pool, i: -1, streak: 0 });
+  nextHanging();
+}
+function nextHanging() {
+  T.i++; T.ch = new Chess(T.pool[T.i % T.pool.length]); T.answer = hangingSet(T.ch); T.picked = new Set(); T.checked = false;
+  S.orient = T.ch.turn(); T.marks = []; T.last = null;
+  T.sub = `подряд без ошибок: ${T.streak}`;
+  T.status = 'Отметьте все фигуры <b>обеих сторон</b>, которые можно взять даром. Если ничего не висит — сразу «Проверить».';
+  T.btns = [['check', 'Проверить', true]];
+  resetPieces(); drawBoard(); renderSolve();
+}
+function hangingTap(sq) {
+  if (T.kind !== 'hanging') return false;
+  if (T.checked || !T.ch.get(sq) || T.ch.get(sq).type === 'k') return true;
+  if (T.picked.has(sq)) T.picked.delete(sq); else T.picked.add(sq);
+  T.marks = [...T.picked].map(s => ({ sq: s, cls: 'mk-sel' }));
+  drawBoard(); return true;
+}
+function hangingAct(a) {
+  if (a === 'next') return nextHanging();
+  if (a !== 'check') return;
+  T.checked = true;
+  const miss = [...T.answer].filter(s => !T.picked.has(s)), extra = [...T.picked].filter(s => !T.answer.has(s));
+  T.marks = [...[...T.answer].filter(s => T.picked.has(s)).map(s => ({ sq: s, cls: 'mk-ok' })), ...miss.map(s => ({ sq: s, cls: 'mk-miss' })), ...extra.map(s => ({ sq: s, cls: 'mk-bad' }))];
+  const ok = !miss.length && !extra.length;
+  T.streak = ok ? T.streak + 1 : 0;
+  if (ok && T.streak > (prog().best.hanging || 0)) saveProg(p => { p.best.hanging = T.streak; });
+  T.status = ok ? (T.answer.size ? '<span class="ok">Всё верно</span>' : '<span class="ok">Верно — ничего не висит</span>')
+    : `<span class="bad">${[miss.length ? `пропущено ${miss.length}` : '', extra.length ? `лишних ${extra.length}` : ''].filter(Boolean).join(', ')}</span> <span class="sub">красная рамка — что висело</span>`;
+  T.sub = `подряд без ошибок: ${T.streak}`;
+  T.btns = [['next', 'Дальше', true]];
+  drawBoard(); renderSolve();
+}
+
 // ---------- настройки
 function setSeg(id, v) { for (const b of $(id).children) b.classList.toggle('on', b.dataset.v === String(v)); }
 setSeg('colorSeg', prefs.color); setSeg('depthSeg', prefs.depth);
@@ -1334,7 +1814,7 @@ window.__appReady = true;
 
 // GitHub Pages разрешает браузеру держать страницу в кэше до 10 минут, а встроенные браузеры приложений — дольше.
 // Поэтому при открытии сверяемся со свежей копией и, если версия новее, перезагружаемся на неё (один раз на версию).
-const APP_VERSION = '5';
+const APP_VERSION = '6';
 if (location.protocol.startsWith('http')) {
   fetch(location.pathname + '?check=' + Date.now(), { cache: 'no-store' })
     .then(r => r.ok ? r.text() : '')
