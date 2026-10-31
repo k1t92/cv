@@ -132,7 +132,7 @@ textarea{width:100%;min-height:120px;resize:vertical;font:13px/1.4 ui-monospace,
 #pieces.instant .pc{transition:none}
 #promo{position:absolute;inset:0;background:rgba(0,0,0,.4);display:flex;align-items:center;justify-content:center;gap:8px;animation:fadeIn .15s}
 #promo[hidden]{display:none}
-#promo button{width:20%;aspect-ratio:1/1;padding:0;background:var(--surface);border-radius:14px}
+#promo button{width:20%;aspect-ratio:1/1;padding:0;background:#efe9dd;border-radius:14px;box-shadow:0 4px 14px rgba(0,0,0,.35)}
 #promo svg{width:100%;height:100%}
 
 .strip[hidden],.actions[hidden]{display:none}
@@ -929,7 +929,8 @@ function renderEvalBar() {
 
 // касания: свайп листает ходы, тап выбирает поле
 let down = null;
-$('boardWrap').addEventListener('pointerdown', e => { down = { x: e.clientX, y: e.clientY }; });
+// нажатия по окну выбора фигуры для превращения — не тапы по доске
+$('boardWrap').addEventListener('pointerdown', e => { down = e.target.closest('#promo') ? null : { x: e.clientX, y: e.clientY }; });
 $('boardWrap').addEventListener('pointerup', e => {
   if (!down) return;
   const dx = e.clientX - down.x, dy = e.clientY - down.y;
@@ -1131,8 +1132,9 @@ async function onSquare(sq) {
     const cands = ch.moves({ square: S.sel, verbose: true }).filter(m => m.to === sq);
     if (cands.length) {
       let promotion;
-      if (cands.some(m => m.promotion)) { promotion = await askPromotion(ch.turn()); if (!promotion) { S.sel = null; drawBoard(); return; } }
-      const from = S.sel; S.sel = null;
+      const from = S.sel;
+      if (cands.some(m => m.promotion)) { promotion = await askPromotion(ch.turn()); if (!promotion || moveCtx()?.ch !== ch) { S.sel = null; drawBoard(); return; } }
+      S.sel = null;
       ctx.done(ch.move({ from, to: sq, promotion }));
       return;
     }
@@ -1814,7 +1816,7 @@ window.__appReady = true;
 
 // GitHub Pages разрешает браузеру держать страницу в кэше до 10 минут, а встроенные браузеры приложений — дольше.
 // Поэтому при открытии сверяемся со свежей копией и, если версия новее, перезагружаемся на неё (один раз на версию).
-const APP_VERSION = '6';
+const APP_VERSION = '7';
 if (location.protocol.startsWith('http')) {
   fetch(location.pathname + '?check=' + Date.now(), { cache: 'no-store' })
     .then(r => r.ok ? r.text() : '')
