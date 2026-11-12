@@ -222,6 +222,7 @@ button { cursor: pointer; border: 0; background: none; padding: 0; }
 .ing-h { padding: 18px 0 4px; font-size: 13px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
 .struck { opacity: .45; text-decoration: line-through; }
 
+.step-note { font-size: 13.5px; color: var(--muted); background: var(--chip); padding: 10px 12px; border-radius: 12px; margin-bottom: 6px; }
 .steps { counter-reset: s; }
 .steps li { counter-increment: s; position: relative; padding: 14px 0 14px 46px; border-bottom: 1px solid var(--line); cursor: pointer; }
 .steps li::before { content: counter(s); position: absolute; left: 0; top: 13px; width: 32px; height: 32px; border-radius: 50%; display: grid; place-items: center; background: var(--ink); color: var(--bg); font-weight: 700; font-size: 14px; }
@@ -255,6 +256,13 @@ button { cursor: pointer; border: 0; background: none; padding: 0; }
 .addrow input { flex: 1; min-width: 0; height: 50px; padding: 0 16px; border-radius: 14px; border: 1px solid var(--line); background: var(--surface); font-size: 16px; }
 .addrow .btn { padding: 0 14px; }
 
+.credit { font-size: 12px; color: var(--muted); margin: -8px 0 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.credit a, .foot a, .credits span a { text-decoration: underline; text-underline-offset: 2px; }
+.credits { padding: 0 var(--pad); max-width: 720px; }
+.credits ul { margin: 16px 0 24px; }
+.credits li { padding: 10px 0; border-bottom: 1px solid var(--line); font-size: 15px; }
+.credits li > a { font-weight: 600; display: block; }
+.credits li span { color: var(--muted); font-size: 13px; overflow-wrap: anywhere; }
 .empty { text-align: center; padding: 56px 28px; display: grid; gap: 8px; justify-items: center; }
 .empty .btn { margin-top: 12px; }
 .emo-big { font-size: 48px; }

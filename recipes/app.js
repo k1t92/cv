@@ -30,6 +30,7 @@
   var COL = {}; COLS.forEach(function (c) { COL[c.id] = c; });
 
   // ───────── утилиты
+  var CREDITS = window.CREDITS || {};
   var $ = function (s, el) { return (el || document).querySelector(s); };
   var app = $("#app"), tabsEl = $("#tabs"), sheetEl = $("#sheet"), toastEl = $("#toast");
   function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); }
@@ -197,7 +198,8 @@
     ["chicken", "pork", "beef", "seafood", "other"].forEach(function (c) {
       h += row(CATS[c][0], rot(RECIPES.filter(function (r) { return r.cat === c; })), "#/s?cat=" + c);
     });
-    h += '<p class="foot">' + RECIPES.length + " рецептов · КБЖУ рассчитаны по сырым продуктам на одну порцию и являются оценкой.</p>";
+    h += '<p class="foot">' + RECIPES.length + " рецептов · КБЖУ рассчитаны по сырым продуктам на одну порцию и являются оценкой." +
+      (Object.keys(IMG).length ? ' <a href="#/credits">Авторы фотографий</a>' : "") + "</p>";
     app.innerHTML = h;
   }
 
@@ -309,6 +311,11 @@
         (it.note ? ", " + esc(it.note) : "") + (hn ? ' <small>' + hn + "</small>" : "") + "</span></li>";
     }).join("");
   }
+  function creditLine(r) {
+    var c = CREDITS[r.id];
+    if (!c || !IMG[r.id]) return "";
+    return '<p class="credit">Фото: <a href="' + esc(c[3]) + '" target="_blank" rel="noopener">' + esc(c[0] || "Wikimedia Commons") + "</a>" + (c[1] ? ", " + esc(c[1]) : "") + "</p>";
+  }
   function listBtnHtml(r) {
     var inL = !!S.list[r.id];
     return '<button class="btn wide' + (inL ? " done" : "") + '" data-act="tolist" data-id="' + r.id + '">' + ico(inL ? "x" : "list") +
@@ -324,7 +331,7 @@
     if (r.tags.spicy) chips.push("Острое");
     var h = '<article class="recipe"><div class="r-hero">' + pic(r, "hero") +
       '<button class="round back" data-act="back" aria-label="Назад">' + ico("back") + "</button>" + saveBtn(r, "round") + "</div>" +
-      '<div class="r-body"><h1>' + esc(r.t) + '</h1><p class="lead">' + esc(r.d) + '</p><div class="tags">' +
+      '<div class="r-body">' + creditLine(r) + '<h1>' + esc(r.t) + '</h1><p class="lead">' + esc(r.d) + '</p><div class="tags">' +
       chips.map(function (c) { return "<span>" + c + "</span>"; }).join("") + "</div>" +
 
       '<section class="kbju" aria-label="Пищевая ценность на порцию"><div class="kbju-row">' +
@@ -341,7 +348,7 @@
 
       '<section class="block"><div class="block-h"><h2>Приготовление</h2>' +
       ("wakeLock" in navigator ? '<button class="chip' + (wake ? " on" : "") + '" data-act="wake">Не гасить экран</button>' : "") + "</div>" +
-      '<ol class="steps">' + r.steps.map(function (s) { return '<li data-act="strike"><p>' + esc(s) + "</p></li>"; }).join("") + "</ol></section>" +
+      '<p class="step-note" id="stepNote" hidden></p><ol class="steps">' + r.steps.map(function (s) { return '<li data-act="strike"><p>' + esc(s) + "</p></li>"; }).join("") + "</ol></section>" +
 
       (r.fr ? '<section class="callout ice"><h3>' + ico("snow") + "Как заморозить</h3><p>" + esc(r.fr) + "</p></section>" : "") +
       (r.tip ? '<section class="callout"><h3>Совет</h3><p>' + esc(r.tip) + "</p></section>" : "");
@@ -357,6 +364,9 @@
     $("#servN").textContent = s + " " + plural(s, ["порция", "порции", "порций"]);
     $("#ings").innerHTML = ingHtml(r);
     $("#listBtn").innerHTML = listBtnHtml(r);
+    var sn = $("#stepNote");
+    sn.hidden = s === r.serv;
+    sn.textContent = "Количества и время в тексте шагов указаны для исходных " + r.serv + " " + plural(r.serv, ["порции", "порций", "порций"]) + " — пересчитанные граммы смотрите в списке продуктов выше.";
   }
 
   // ───────── экран: список покупок
@@ -431,6 +441,19 @@
     app.innerHTML = h;
   }
 
+  // ───────── экран: авторы фото
+  function viewCredits() {
+    var rows = RECIPES.filter(function (r) { return CREDITS[r.id] && IMG[r.id]; });
+    app.innerHTML = '<header class="top"><h1>Авторы фотографий</h1></header><div class="credits"><p class="muted">Фотографии взяты с Wikimedia Commons и используются по свободным лицензиям. ' +
+      'Изображения уменьшены и обрезаны под формат карточек. Фото иллюстрирует блюдо в целом и может отличаться от результата по рецепту.</p><ul>' +
+      rows.map(function (r) {
+        var c = CREDITS[r.id];
+        return '<li><a href="#/r/' + r.id + '">' + esc(r.t) + '</a><span>' + esc(c[0] || "автор не указан") + " · " +
+          (c[2] ? '<a href="' + esc(c[2]) + '" target="_blank" rel="noopener">' + esc(c[1]) + "</a>" : esc(c[1] || "")) +
+          ' · <a href="' + esc(c[3]) + '" target="_blank" rel="noopener">источник</a></span></li>';
+      }).join("") + '</ul><a class="btn" href="#/">На главную</a></div>';
+  }
+
   // ───────── навигация
   var stack = [], pos = {}, cur = "";
   function tabs(active) {
@@ -453,6 +476,7 @@
     else if (/^#\/s(\?|$)/.test(h)) { viewSearch(h.split("?")[1]); active = "search"; }
     else if (h === "#/list") { viewList(); active = "list"; }
     else if (h === "#/saved") { viewSaved(); active = "saved"; }
+    else if (h === "#/credits") { viewCredits(); active = ""; }
     else viewHome();
     tabs(active);
     window.scrollTo(0, back ? pos[h] || 0 : 0);
