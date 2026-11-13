@@ -166,7 +166,7 @@
 
     var tiles = [
       ["Курица", "#/s?cat=chicken", "chicken"], ["Свинина", "#/s?cat=pork", "pork"],
-      ["Говядина", "#/s?cat=beef", "beef"], ["Морепродукты", "#/s?cat=seafood", "seafood"],
+      ["Говядина", "#/s?cat=beef", "beef"], ["Рыба и море", "#/s?cat=seafood", "seafood"],
       ["В морозилку", "#/s?col=freeze", null, "freeze"], ["До 30 минут", "#/s?col=quick", null, "quick"],
       ["Необычный вкус", "#/s?col=unique", null, "unique"], ["Много белка", "#/s?col=protein", null, "protein"]
     ];
