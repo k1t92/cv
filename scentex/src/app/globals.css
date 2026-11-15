@@ -1,0 +1,30 @@
+@import "tailwindcss";
+
+@theme {
+  --color-bg: #0a0b0d;
+  --color-panel: #111317;
+  --color-raised: #171a1f;
+  --color-line: #22262d;
+  --color-ink: #eceef1;
+  --color-muted: #969da8;
+  --color-faint: #636a75;
+  /* Price semantics: a falling price is good news for a buyer. */
+  --color-fall: #2fbf71;
+  --color-rise: #f0616d;
+  --color-gold: #c8a45a;
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+html { color-scheme: dark; }
+body { background: var(--color-bg); color: var(--color-ink); font-family: var(--font-sans); -webkit-font-smoothing: antialiased; }
+.num { font-family: var(--font-mono); font-variant-numeric: tabular-nums; letter-spacing: -0.01em; }
+.label { font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--color-muted); }
+a, button, select, input { transition: color .15s, background-color .15s, border-color .15s; }
+:focus-visible { outline: 2px solid var(--color-gold); outline-offset: 2px; }
+::selection { background: color-mix(in srgb, var(--color-gold) 35%, transparent); }
+.fade-in { animation: fade-in .25s ease-out both; }
+@keyframes fade-in { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+.skeleton { background: linear-gradient(90deg, var(--color-panel), var(--color-raised), var(--color-panel)); background-size: 200% 100%; animation: shimmer 1.4s linear infinite; border-radius: 6px; }
+@keyframes shimmer { to { background-position: -200% 0; } }
+@media (prefers-reduced-motion: reduce) { .fade-in, .skeleton { animation: none; } }

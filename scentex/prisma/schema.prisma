@@ -1,0 +1,322 @@
+// SCENTEX data model.
+// Money is always stored as integer minor units (grosze / cents) + currency.
+// History is append-only: PriceSnapshot (observations) and PriceChange (detected moves).
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Currency {
+  PLN
+  EUR
+}
+
+enum Concentration {
+  EDC
+  EDT
+  EDP
+  PARFUM
+  EXTRAIT
+  OTHER
+}
+
+enum Availability {
+  IN_STOCK
+  OUT_OF_STOCK
+  UNKNOWN
+}
+
+/// How a retailer's data reaches us. DEMO = synthetic, never a real quote.
+enum SourceKind {
+  DEMO
+  API
+  AFFILIATE_FEED
+  XML_CSV_FEED
+  STRUCTURED_DATA
+  SCRAPE
+}
+
+enum MatchStatus {
+  AUTO_EAN
+  AUTO_ATTRIBUTES
+  MANUAL
+  PENDING_REVIEW
+  REJECTED
+}
+
+enum JobStatus {
+  RUNNING
+  SUCCEEDED
+  PARTIAL
+  FAILED
+}
+
+enum DealKind {
+  CLAIMED_DISCOUNT
+  REAL_DROP
+  LOW_30D
+  ALL_TIME_LOW
+}
+
+enum AlertType {
+  TARGET_PRICE
+  ANY_DISCOUNT
+  NEW_LOW
+  BACK_IN_STOCK
+}
+
+enum NotificationChannel {
+  IN_APP
+  EMAIL
+  TELEGRAM
+}
+
+enum UserRole {
+  USER
+  ADMIN
+}
+
+model User {
+  id             String         @id @default(cuid())
+  email          String         @unique
+  name           String?
+  role           UserRole       @default(USER)
+  telegramChatId String?
+  createdAt      DateTime       @default(now())
+  watchlistItems WatchlistItem[]
+  alerts         PriceAlert[]
+  notifications  Notification[]
+}
+
+model Brand {
+  id        String    @id @default(cuid())
+  slug      String    @unique
+  name      String
+  country   String?
+  createdAt DateTime  @default(now())
+  products  Product[]
+}
+
+/// One canonical sellable variant: brand + line + concentration + volume.
+/// Sauvage EDT 100 ml and Sauvage EDP 100 ml are two different Products.
+model Product {
+  id             String            @id @default(cuid())
+  slug           String            @unique
+  brandId        String
+  brand          Brand             @relation(fields: [brandId], references: [id])
+  name           String
+  concentration  Concentration
+  volumeMl       Int
+  ean            String?           @unique
+  description    String?
+  category       String?
+  releaseYear    Int?
+  imageUrl       String?
+  /// Editorially curated rank (lower = more prominent). Not a traffic metric.
+  featuredRank   Int?
+  createdAt      DateTime          @default(now())
+  offers         RetailerProduct[]
+  changes        PriceChange[]
+  stats          ProductStats?
+  deals          Deal[]
+  watchlistItems WatchlistItem[]
+  alerts         PriceAlert[]
+
+  @@unique([brandId, name, concentration, volumeMl])
+  @@index([brandId])
+  @@index([name])
+}
+
+model Retailer {
+  id          String            @id @default(cuid())
+  slug        String            @unique
+  name        String
+  country     String
+  currency    Currency
+  websiteUrl  String
+  sourceKind  SourceKind
+  adapterKey  String
+  enabled     Boolean           @default(true)
+  lastRunAt   DateTime?
+  createdAt   DateTime          @default(now())
+  offers      RetailerProduct[]
+  jobs        ScraperJob[]
+  cheapestFor ProductStats[]
+}
+
+/// A retailer's listing, holding the *current* state. productId is null until matched.
+model RetailerProduct {
+  id                 String          @id @default(cuid())
+  retailerId         String
+  retailer           Retailer        @relation(fields: [retailerId], references: [id])
+  productId          String?
+  product            Product?        @relation(fields: [productId], references: [id])
+  externalId         String
+  rawTitle           String
+  rawBrand           String?
+  ean                String?
+  url                String
+  imageUrl           String?
+  matchStatus        MatchStatus
+  matchConfidence    Float           @default(0)
+  currency           Currency
+  priceMinor         Int
+  originalPriceMinor Int?
+  shippingMinor      Int?
+  availability       Availability
+  lastCheckedAt      DateTime
+  lastChangedAt      DateTime?
+  createdAt          DateTime        @default(now())
+  snapshots          PriceSnapshot[]
+  changes            PriceChange[]
+  deals              Deal[]
+
+  @@unique([retailerId, externalId])
+  @@index([productId])
+  @@index([matchStatus])
+}
+
+/// Observation log. Written when price/availability changed or on the first check of a UTC day,
+/// so the table grows with ~1 row per offer per day instead of 1 row per check.
+model PriceSnapshot {
+  id                 BigInt          @id @default(autoincrement())
+  retailerProductId  String
+  retailerProduct    RetailerProduct @relation(fields: [retailerProductId], references: [id], onDelete: Cascade)
+  priceMinor         Int
+  originalPriceMinor Int?
+  availability       Availability
+  checkedAt          DateTime
+
+  @@index([retailerProductId, checkedAt])
+  @@index([checkedAt])
+}
+
+model PriceChange {
+  id                BigInt          @id @default(autoincrement())
+  retailerProductId String
+  retailerProduct   RetailerProduct @relation(fields: [retailerProductId], references: [id], onDelete: Cascade)
+  productId         String?
+  product           Product?        @relation(fields: [productId], references: [id])
+  currency          Currency
+  oldPriceMinor     Int
+  newPriceMinor     Int
+  deltaMinor        Int
+  pctChange         Float
+  detectedAt        DateTime
+
+  @@index([productId, detectedAt])
+  @@index([detectedAt])
+}
+
+/// Denormalised per-product market aggregates, in the base currency (PLN minor units).
+/// Recomputed after each ingest so the market table can sort/filter in SQL.
+model ProductStats {
+  productId          String    @id
+  product            Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
+  offersCount        Int
+  inStockCount       Int
+  lowestMinor        Int?
+  avgMinor           Int?
+  highestMinor       Int?
+  cheapestRetailerId String?
+  cheapestRetailer   Retailer? @relation(fields: [cheapestRetailerId], references: [id])
+  change24hPct       Float?
+  change7dPct        Float?
+  change30dPct       Float?
+  low30dMinor        Int?
+  lowAllTimeMinor    Int?
+  isLow30d           Boolean   @default(false)
+  isAllTimeLow       Boolean   @default(false)
+  maxClaimedDiscount Float?
+  lastCheckedAt      DateTime?
+  updatedAt          DateTime  @updatedAt
+
+  @@index([lowestMinor])
+  @@index([change24hPct])
+  @@index([change7dPct])
+  @@index([change30dPct])
+}
+
+// ---- Declared for later phases; not populated in Phase 1. ----
+
+model Deal {
+  id                String          @id @default(cuid())
+  productId         String
+  product           Product         @relation(fields: [productId], references: [id])
+  retailerProductId String
+  retailerProduct   RetailerProduct @relation(fields: [retailerProductId], references: [id], onDelete: Cascade)
+  kind              DealKind
+  discountPct       Float
+  startedAt         DateTime
+  endedAt           DateTime?
+
+  @@index([kind, endedAt])
+  @@index([productId])
+}
+
+model WatchlistItem {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  productId   String
+  product     Product  @relation(fields: [productId], references: [id])
+  targetMinor Int?
+  currency    Currency @default(PLN)
+  createdAt   DateTime @default(now())
+
+  @@unique([userId, productId])
+}
+
+model PriceAlert {
+  id          String        @id @default(cuid())
+  userId      String
+  user        User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  productId   String
+  product     Product       @relation(fields: [productId], references: [id])
+  type        AlertType
+  targetMinor Int?
+  currency    Currency      @default(PLN)
+  active      Boolean       @default(true)
+  lastFiredAt DateTime?
+  createdAt   DateTime      @default(now())
+  notifications Notification[]
+
+  @@index([productId, active])
+}
+
+model Notification {
+  id        String              @id @default(cuid())
+  userId    String
+  user      User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  alertId   String?
+  alert     PriceAlert?         @relation(fields: [alertId], references: [id])
+  channel   NotificationChannel
+  title     String
+  body      String
+  readAt    DateTime?
+  sentAt    DateTime?
+  createdAt DateTime            @default(now())
+
+  @@index([userId, readAt])
+}
+
+model ScraperJob {
+  id           String    @id @default(cuid())
+  retailerId   String
+  retailer     Retailer  @relation(fields: [retailerId], references: [id])
+  status       JobStatus
+  startedAt    DateTime  @default(now())
+  finishedAt   DateTime?
+  offersSeen   Int       @default(0)
+  offersChanged Int      @default(0)
+  offersRejected Int     @default(0)
+  unmatched    Int       @default(0)
+  errorMessage String?
+
+  @@index([retailerId, startedAt])
+}
