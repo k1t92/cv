@@ -1,24 +1,15 @@
 /**
- * Runs every enabled retailer's adapter once through the real ingest pipeline.
- * With demo retailers this advances the synthetic market to "now".
- * In production the same call is what a scheduled worker executes.
+ * Manual run: `npm run engine:run [-- <source-slug>]`.
+ * Runs every enabled source (or one) immediately through the real ingest pipeline, ignoring intervals.
  */
 import { prisma } from "../src/lib/db";
-import { getAdapter } from "../src/engine/adapters";
-import { runAdapter } from "../src/engine/ingest";
+import { runSource } from "../src/engine/scheduler";
 
 async function main() {
-  const retailers = await prisma.retailer.findMany({ where: { enabled: true }, orderBy: { slug: "asc" } });
-  if (!retailers.length) throw new Error("No retailers found. Run `npm run db:seed` first.");
-  const now = new Date();
-  for (const retailer of retailers) {
-    const adapter = getAdapter(retailer.adapterKey);
-    if (!adapter) {
-      console.warn(`[skip] ${retailer.slug}: no adapter registered for "${retailer.adapterKey}"`);
-      continue;
-    }
-    console.log(JSON.stringify(await runAdapter(prisma, retailer, adapter, now)));
-  }
+  const slug = process.argv[2];
+  const retailers = await prisma.retailer.findMany({ where: slug ? { slug } : { enabled: true }, orderBy: { slug: "asc" } });
+  if (!retailers.length) throw new Error(slug ? `No source "${slug}"` : "No sources found. Run `npm run db:seed` first.");
+  for (const retailer of retailers) console.log(JSON.stringify(await runSource(prisma, retailer)));
 }
 
 main()

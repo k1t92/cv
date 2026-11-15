@@ -1,4 +1,5 @@
 import type { PrismaClient, Retailer } from "@prisma/client";
+import { modeOf } from "@/lib/mode";
 import { matchProduct, type MatchCandidate } from "./matching";
 import { recomputeProductStats } from "./stats";
 import { computeTransition, isPlausibleMove } from "./transition";
@@ -11,7 +12,16 @@ export interface RunSummary {
   offersChanged: number;
   offersRejected: number;
   unmatched: number;
+  offersMissing: number;
   error?: string;
+}
+
+/** Abort instead of writing when a feed suddenly shrinks: a truncated download must not wipe a catalogue. */
+export const MIN_RETAINED_SHARE = 0.5;
+const GUARD_MIN_PREVIOUS = 20;
+
+export function feedShrankTooMuch(previousCount: number | null | undefined, currentCount: number): boolean {
+  return previousCount != null && previousCount >= GUARD_MIN_PREVIOUS && currentCount < previousCount * MIN_RETAINED_SHARE;
 }
 
 async function withRetry<T>(fn: () => Promise<T>, attempts = 3, baseDelayMs = 500): Promise<T> {
@@ -34,7 +44,8 @@ async function withRetry<T>(fn: () => Promise<T>, attempts = 3, baseDelayMs = 50
  */
 export async function runAdapter(prisma: PrismaClient, retailer: Retailer, adapter: RetailerAdapter, now = new Date()): Promise<RunSummary> {
   const job = await prisma.scraperJob.create({ data: { retailerId: retailer.id, status: "RUNNING", startedAt: now } });
-  const summary: RunSummary = { retailer: retailer.slug, status: "SUCCEEDED", offersSeen: 0, offersChanged: 0, offersRejected: 0, unmatched: 0 };
+  const summary: RunSummary = { retailer: retailer.slug, status: "SUCCEEDED", offersSeen: 0, offersChanged: 0, offersRejected: 0, unmatched: 0, offersMissing: 0 };
+  const mode = modeOf(retailer.sourceKind);
 
   try {
     const fetched = await withRetry(() => adapter.fetchOffers(retailer, { now }));
@@ -43,8 +54,13 @@ export async function runAdapter(prisma: PrismaClient, retailer: Retailer, adapt
     const valid = new Map<string, RawOffer>();
     for (const item of fetched) {
       const parsed = rawOfferSchema.safeParse(item);
-      if (parsed.success) valid.set(parsed.data.externalId, parsed.data);
+      // A source must quote in its own declared currency; anything else is a mapping error.
+      if (parsed.success && parsed.data.currency === retailer.currency) valid.set(parsed.data.externalId, parsed.data);
       else summary.offersRejected++;
+    }
+    if (valid.size === 0) throw new Error(`No valid offers (${fetched.length} fetched, ${summary.offersRejected} rejected)`);
+    if (feedShrankTooMuch(retailer.lastOfferCount, valid.size)) {
+      throw new Error(`Feed shrank from ${retailer.lastOfferCount} to ${valid.size} offers; run aborted, stored data left untouched`);
     }
 
     const products = await prisma.product.findMany({ include: { brand: true } });
@@ -122,7 +138,23 @@ export async function runAdapter(prisma: PrismaClient, retailer: Retailer, adapt
       if (existing.productId) affected.add(existing.productId);
     }
 
-    for (const productId of affected) await recomputeProductStats(prisma, productId, now);
+    // Listings that vanished from the source are no longer confirmed purchasable.
+    const missing = await prisma.retailerProduct.findMany({
+      where: { retailerId: retailer.id, externalId: { notIn: [...valid.keys()] }, availability: { not: "UNKNOWN" } },
+      select: { id: true, productId: true, priceMinor: true, originalPriceMinor: true },
+    });
+    for (const gone of missing) {
+      await prisma.$transaction([
+        prisma.retailerProduct.update({ where: { id: gone.id }, data: { availability: "UNKNOWN", lastChangedAt: now } }),
+        prisma.priceSnapshot.create({
+          data: { retailerProductId: gone.id, priceMinor: gone.priceMinor, originalPriceMinor: gone.originalPriceMinor, availability: "UNKNOWN", checkedAt: now },
+        }),
+      ]);
+      if (gone.productId) affected.add(gone.productId);
+    }
+    summary.offersMissing = missing.length;
+
+    for (const productId of affected) await recomputeProductStats(prisma, productId, mode, now);
     if (summary.offersRejected > 0) summary.status = "PARTIAL";
   } catch (error) {
     summary.status = "FAILED";
@@ -135,10 +167,18 @@ export async function runAdapter(prisma: PrismaClient, retailer: Retailer, adapt
       where: { id: job.id },
       data: {
         status: summary.status, finishedAt: new Date(), offersSeen: summary.offersSeen, offersChanged: summary.offersChanged,
-        offersRejected: summary.offersRejected, unmatched: summary.unmatched, errorMessage: summary.error,
+        offersRejected: summary.offersRejected, unmatched: summary.unmatched, offersMissing: summary.offersMissing,
+        errorMessage: summary.error?.slice(0, 2000),
       },
     }),
-    prisma.retailer.update({ where: { id: retailer.id }, data: { lastRunAt: now } }),
+    prisma.retailer.update({
+      where: { id: retailer.id },
+      data: {
+        lastRunAt: now, lastStatus: summary.status, lastError: summary.error?.slice(0, 2000) ?? null,
+        consecutiveFailures: summary.status === "FAILED" ? { increment: 1 } : 0,
+        ...(summary.status === "FAILED" ? {} : { lastOfferCount: summary.offersSeen }),
+      },
+    }),
   ]);
   return summary;
 }

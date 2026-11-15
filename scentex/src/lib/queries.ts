@@ -1,6 +1,8 @@
-import type { Concentration, Prisma } from "@prisma/client";
+import type { Concentration, DataMode, Prisma } from "@prisma/client";
 import { prisma } from "./db";
-import { convertMinor, eurPlnRate, type CurrencyCode } from "./money";
+import { getFx } from "./fx";
+import { modeFilter } from "./mode";
+import { convertMinor, type CurrencyCode } from "./money";
 import { rangeStart, type RangeKey } from "./ranges";
 import { clip, compress, lowestAcross, seriesStats, type Observation, type SeriesStats } from "./series";
 
@@ -8,56 +10,57 @@ const MATCHED = ["AUTO_EAN", "AUTO_ATTRIBUTES", "MANUAL"] as const;
 const statsInclude = { product: { include: { brand: true } }, cheapestRetailer: true } satisfies Prisma.ProductStatsInclude;
 export type StatsRow = Prisma.ProductStatsGetPayload<{ include: typeof statsInclude }>;
 
-export async function getMarketSummary() {
-  const [products, retailers, demoRetailers, discounts, newLows, latest] = await Promise.all([
-    prisma.product.count(),
-    prisma.retailer.count({ where: { enabled: true } }),
-    prisma.retailer.count({ where: { enabled: true, sourceKind: "DEMO" } }),
+export async function getMarketSummary(mode: DataMode) {
+  const kind = mode === "DEMO";
+  const [products, retailers, discounts, newLows, latest] = await Promise.all([
+    prisma.productStats.count({ where: { mode } }),
+    prisma.retailer.count({ where: modeFilter(mode) }),
     prisma.$queryRaw<{ count: bigint }[]>`
-      SELECT count(*) FROM "RetailerProduct"
-      WHERE "productId" IS NOT NULL AND "availability" = 'IN_STOCK' AND "originalPriceMinor" > "priceMinor"`,
-    prisma.productStats.count({ where: { isLow30d: true } }),
-    prisma.retailer.aggregate({ _max: { lastRunAt: true } }),
+      SELECT count(*) FROM "RetailerProduct" rp JOIN "Retailer" r ON r."id" = rp."retailerId"
+      WHERE rp."productId" IS NOT NULL AND rp."availability" = 'IN_STOCK' AND rp."originalPriceMinor" > rp."priceMinor"
+        AND r."enabled" AND (r."sourceKind" = 'DEMO') = ${kind}`,
+    prisma.productStats.count({ where: { mode, isLow30d: true } }),
+    prisma.retailer.aggregate({ where: modeFilter(mode), _max: { lastRunAt: true } }),
   ]);
-  return {
-    products, retailers, demoRetailers,
-    discounts: Number(discounts[0]?.count ?? 0),
-    newLows,
-    lastUpdate: latest._max.lastRunAt,
-  };
+  return { products, retailers, discounts: Number(discounts[0]?.count ?? 0), newLows, lastUpdate: latest._max.lastRunAt };
 }
 
-export async function hasDemoData(): Promise<boolean> {
-  return (await prisma.retailer.count({ where: { sourceKind: "DEMO", enabled: true } })) > 0;
+/** How many enabled sources exist per mode; drives the default view and the LIVE/DEMO switch. */
+export async function getSourceCounts(): Promise<{ live: number; demo: number }> {
+  const [live, demo] = await Promise.all([
+    prisma.retailer.count({ where: modeFilter("LIVE") }),
+    prisma.retailer.count({ where: modeFilter("DEMO") }),
+  ]);
+  return { live, demo };
 }
 
-export function getMovers(kind: "fallers" | "risers", take = 5): Promise<StatsRow[]> {
+export function getMovers(mode: DataMode, kind: "fallers" | "risers", take = 5): Promise<StatsRow[]> {
   return prisma.productStats.findMany({
-    where: { change24hPct: kind === "fallers" ? { lt: 0 } : { gt: 0 } },
+    where: { mode, change24hPct: kind === "fallers" ? { lt: 0 } : { gt: 0 } },
     orderBy: { change24hPct: kind === "fallers" ? "asc" : "desc" },
     take, include: statsInclude,
   });
 }
 
-export function getNewLows(take = 5): Promise<StatsRow[]> {
+export function getNewLows(mode: DataMode, take = 5): Promise<StatsRow[]> {
   return prisma.productStats.findMany({
-    where: { isLow30d: true, lowestMinor: { not: null } },
+    where: { mode, isLow30d: true, lowestMinor: { not: null } },
     orderBy: [{ isAllTimeLow: "desc" }, { change30dPct: "asc" }],
     take, include: statsInclude,
   });
 }
 
-export function getFeatured(take = 6): Promise<StatsRow[]> {
+export function getFeatured(mode: DataMode, take = 6): Promise<StatsRow[]> {
   return prisma.productStats.findMany({
-    where: { product: { featuredRank: { not: null } } },
+    where: { mode, product: { featuredRank: { not: null } } },
     orderBy: { product: { featuredRank: "asc" } },
     take, include: statsInclude,
   });
 }
 
-export function getRecentChanges(take = 8) {
+export function getRecentChanges(mode: DataMode, take = 8) {
   return prisma.priceChange.findMany({
-    where: { productId: { not: null } },
+    where: { productId: { not: null }, retailerProduct: { retailer: modeFilter(mode) } },
     orderBy: { detectedAt: "desc" },
     take,
     include: { product: { include: { brand: true } }, retailerProduct: { include: { retailer: true } } },
@@ -66,12 +69,12 @@ export function getRecentChanges(take = 8) {
 
 export interface BrandMove { slug: string; name: string; products: number; avg7d: number | null }
 
-export async function getBrandMoves(take = 6): Promise<BrandMove[]> {
+export async function getBrandMoves(mode: DataMode, take = 6): Promise<BrandMove[]> {
   const rows = await prisma.$queryRaw<{ slug: string; name: string; products: bigint; avg7d: number | null }[]>`
     SELECT b."slug", b."name", count(p."id") AS products, avg(s."change7dPct") AS avg7d
     FROM "Brand" b
     JOIN "Product" p ON p."brandId" = b."id"
-    JOIN "ProductStats" s ON s."productId" = p."id"
+    JOIN "ProductStats" s ON s."productId" = p."id" AND s."mode" = ${mode}::"DataMode"
     GROUP BY b."id"
     ORDER BY abs(coalesce(avg(s."change7dPct"), 0)) DESC
     LIMIT ${take}`;
@@ -145,7 +148,7 @@ function orderBy(sort: SortKey, dir: "asc" | "desc"): Prisma.ProductStatsOrderBy
   }
 }
 
-export async function listMarket(query: MarketQuery, pageSize: number) {
+export async function listMarket(query: MarketQuery, pageSize: number, mode: DataMode) {
   const product: Prisma.ProductWhereInput = {
     ...(query.brand ? { brand: { slug: query.brand } } : {}),
     ...(query.conc ? { concentration: query.conc } : {}),
@@ -155,7 +158,7 @@ export async function listMarket(query: MarketQuery, pageSize: number) {
         })) }
       : {}),
   };
-  const where: Prisma.ProductStatsWhereInput = { product };
+  const where: Prisma.ProductStatsWhereInput = { mode, product };
   const total = await prisma.productStats.count({ where });
   const pages = Math.max(1, Math.ceil(total / pageSize));
   const page = Math.min(query.page, pages);
@@ -167,20 +170,20 @@ export async function listMarket(query: MarketQuery, pageSize: number) {
 
 // ---- Product terminal ----
 
-export function getProduct(slug: string) {
+export function getProduct(slug: string, mode: DataMode) {
   return prisma.product.findUnique({
     where: { slug },
     include: {
       brand: true,
-      stats: true,
-      offers: { where: { matchStatus: { in: [...MATCHED] } }, include: { retailer: true } },
+      stats: { where: { mode } },
+      offers: { where: { matchStatus: { in: [...MATCHED] }, retailer: modeFilter(mode) }, include: { retailer: true } },
     },
   });
 }
 
-export function getPriceChanges(productId: string, take = 200) {
+export function getPriceChanges(productId: string, mode: DataMode, take = 200) {
   return prisma.priceChange.findMany({
-    where: { productId },
+    where: { productId, retailerProduct: { retailer: modeFilter(mode) } },
     orderBy: { detectedAt: "desc" },
     take,
     include: { retailerProduct: { include: { retailer: true } } },
@@ -194,6 +197,8 @@ export async function retailerColorIndex(): Promise<Map<string, number>> {
 }
 
 export interface HistoryPayload {
+  /** DEMO = synthetic prices; LIVE = observed from real sources. A response never mixes the two. */
+  mode: DataMode;
   range: RangeKey;
   currency: CurrencyCode;
   from: number;
@@ -203,14 +208,14 @@ export interface HistoryPayload {
   retailers: { id: string; name: string; country: string; colorIndex: number; points: Observation[] }[];
 }
 
-export async function getHistory(slug: string, range: RangeKey, currency: CurrencyCode, now = new Date()): Promise<HistoryPayload | null> {
+export async function getHistory(slug: string, range: RangeKey, currency: CurrencyCode, mode: DataMode, now = new Date()): Promise<HistoryPayload | null> {
   const product = await prisma.product.findUnique({
     where: { slug },
-    select: { offers: { where: { matchStatus: { in: [...MATCHED] } }, select: { id: true, currency: true, retailer: true } } },
+    select: { offers: { where: { matchStatus: { in: [...MATCHED] }, retailer: modeFilter(mode) }, select: { id: true, currency: true, retailer: true } } },
   });
   if (!product) return null;
   const start = rangeStart(range, now);
-  const rate = eurPlnRate();
+  const { rate } = await getFx(prisma);
   const colors = await retailerColorIndex();
   const to = now.getTime();
 
@@ -239,5 +244,5 @@ export async function getHistory(slug: string, range: RangeKey, currency: Curren
 
   const lowest = lowestAcross(retailers.map((r) => r.points));
   const from = start ? start.getTime() : lowest[0]?.t ?? to;
-  return { range, currency, from, to, lowest, stats: seriesStats(lowest, to), retailers };
+  return { mode, range, currency, from, to, lowest, stats: seriesStats(lowest, to), retailers };
 }

@@ -2,18 +2,18 @@ export type CurrencyCode = "PLN" | "EUR";
 export const BASE_CURRENCY: CurrencyCode = "PLN";
 export const CURRENCIES: CurrencyCode[] = ["PLN", "EUR"];
 
-/** PLN per 1 EUR. Static, configured via env until a rates feed exists. */
-export function eurPlnRate(): number {
+/** Fallback PLN per 1 EUR from env, used only when no stored reference rate exists (see lib/fx.ts). */
+export function fallbackEurPlnRate(): number {
   const parsed = Number(process.env.EUR_PLN_RATE);
   return Number.isFinite(parsed) && parsed > 0 ? parsed : 4.25;
 }
 
-export function convertMinor(amount: number, from: CurrencyCode, to: CurrencyCode, rate = eurPlnRate()): number {
+export function convertMinor(amount: number, from: CurrencyCode, to: CurrencyCode, rate: number): number {
   if (from === to) return amount;
   return Math.round(from === "EUR" ? amount * rate : amount / rate);
 }
 
-export function toBaseMinor(amount: number, from: CurrencyCode, rate = eurPlnRate()): number {
+export function toBaseMinor(amount: number, from: CurrencyCode, rate: number): number {
   return convertMinor(amount, from, BASE_CURRENCY, rate);
 }
 

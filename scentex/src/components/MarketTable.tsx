@@ -14,6 +14,8 @@ interface Props {
   page: number;
   pages: number;
   currency: CurrencyCode;
+  /** PLN per EUR */
+  rate: number;
   brands: { slug: string; name: string }[];
 }
 
@@ -41,9 +43,9 @@ export function MarketFilters({ basePath, query, brands, hash = "" }: Pick<Props
   );
 }
 
-export function MarketTable({ basePath, hash = "", query, rows, total, page, pages, currency, brands }: Props) {
+export function MarketTable({ basePath, hash = "", query, rows, total, page, pages, currency, rate, brands }: Props) {
   const t = getDictionary().table;
-  const money = (base: number | null) => formatMoney(base == null ? null : convertMinor(base, "PLN", currency), currency);
+  const money = (base: number | null) => formatMoney(base == null ? null : convertMinor(base, "PLN", currency, rate), currency);
 
   const Th = ({ id, label, align = "right", className = "" }: { id: SortKey; label: string; align?: "left" | "right"; className?: string }) => {
     const active = query.sort === id;

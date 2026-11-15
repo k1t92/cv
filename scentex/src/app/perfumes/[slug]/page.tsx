@@ -8,10 +8,12 @@ import { Badge, BottleGlyph, Change, Panel } from "@/components/ui";
 import { getDictionary } from "@/i18n";
 import { CONCENTRATION_LONG, formatDateTime, formatMoney, formatPct, timeAgo } from "@/lib/format";
 import { convertMinor, discountPct } from "@/lib/money";
-import { getCurrency } from "@/lib/prefs";
+import { prisma } from "@/lib/db";
+import { getFx } from "@/lib/fx";
+import { getCurrency, getMode } from "@/lib/prefs";
 import { getPriceChanges, getProduct } from "@/lib/queries";
 
-const loadProduct = cache(getProduct);
+const loadProduct = cache(async (slug: string) => getProduct(slug, (await getMode()).mode));
 type Params = { params: Promise<{ slug: string }> };
 
 function fullName(p: { brand: { name: string }; name: string; concentration: string; volumeMl: number }) {
@@ -30,12 +32,13 @@ export default async function ProductPage({ params }: Params) {
   const t = getDictionary().product;
   const product = await loadProduct((await params).slug);
   if (!product) notFound();
-  const [currency, changes] = await Promise.all([getCurrency(), getPriceChanges(product.id)]);
+  const { mode } = await getMode();
+  const [currency, { rate }, changes] = await Promise.all([getCurrency(), getFx(prisma), getPriceChanges(product.id, mode)]);
   const now = new Date();
-  const stats = product.stats;
-  const view = (minor: number | null | undefined, from: "PLN" | "EUR") => (minor == null ? null : convertMinor(minor, from, currency));
+  const stats = product.stats[0];
+  const view = (minor: number | null | undefined, from: "PLN" | "EUR") => (minor == null ? null : convertMinor(minor, from, currency, rate));
   const money = (minor: number | null | undefined) => formatMoney(minor, currency);
-  const isDemo = product.offers.some((o) => o.retailer.sourceKind === "DEMO");
+  const isDemo = mode === "DEMO";
 
   const offers = product.offers
     .map((o) => {
@@ -57,7 +60,7 @@ export default async function ProductPage({ params }: Params) {
       total: { text: money(total), sort: total ?? Number.MAX_SAFE_INTEGER },
       stock: { text: inStock ? "In stock" : o.availability === "OUT_OF_STOCK" ? "Out of stock" : "Unknown", tone: inStock ? undefined : "muted", sort: inStock ? 0 : 1 },
       checked: { text: timeAgo(o.lastCheckedAt, now), sort: -o.lastCheckedAt.getTime(), tone: "muted" },
-      link: { text: o.retailer.sourceKind === "DEMO" ? "Store home" : "View offer", href: o.url },
+      link: { text: isDemo ? "Store home" : "View offer", href: o.url },
     };
     return { key: o.id, cells, highlight: best?.o.id === o.id };
   });
@@ -84,7 +87,7 @@ export default async function ProductPage({ params }: Params) {
     category: "Fragrance",
     ...(product.ean ? { gtin: product.ean } : {}),
     ...(!isDemo && best && stats?.highestMinor != null
-      ? { offers: { "@type": "AggregateOffer", priceCurrency: currency, lowPrice: (best.price / 100).toFixed(2), highPrice: (convertMinor(stats.highestMinor, "PLN", currency) / 100).toFixed(2), offerCount: stats.inStockCount } }
+      ? { offers: { "@type": "AggregateOffer", priceCurrency: currency, lowPrice: (best.price / 100).toFixed(2), highPrice: (convertMinor(stats.highestMinor, "PLN", currency, rate) / 100).toFixed(2), offerCount: stats.inStockCount } }
       : {}),
   };
 
@@ -110,7 +113,7 @@ export default async function ProductPage({ params }: Params) {
               <h1 className="mt-1 text-2xl font-medium tracking-tight">{product.name}</h1>
               <p className="mt-1 text-sm text-muted">{CONCENTRATION_LONG[product.concentration]} · {product.volumeMl} ml</p>
               <div className="mt-3 flex flex-wrap gap-1.5">
-                {isDemo && <Badge tone="gold">Demo prices</Badge>}
+                {isDemo ? <Badge tone="gold">Demo data · synthetic prices</Badge> : <Badge tone="fall">Live data</Badge>}
                 {stats?.isAllTimeLow && <Badge tone="gold">{t.lowAll}</Badge>}
                 {stats?.isLow30d && <Badge tone="fall">{t.low30}</Badge>}
               </div>
@@ -137,7 +140,7 @@ export default async function ProductPage({ params }: Params) {
       </Panel>
 
       <Panel title={t.chart} hint="Lowest in-stock price across retailers. Each line is a step: a price holds until the next recorded observation.">
-        <PriceChart slug={product.slug} currency={currency} />
+        <PriceChart slug={product.slug} currency={currency} mode={mode} />
       </Panel>
 
       <Panel title={t.offers} hint={`${offers.filter((x) => x.inStock).length} of ${offers.length} in stock · “Claimed discount” is the store’s own struck-through price, not a verified drop.`}>

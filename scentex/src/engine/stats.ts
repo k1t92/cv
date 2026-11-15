@@ -1,16 +1,20 @@
 import type { PrismaClient } from "@prisma/client";
-import { discountPct, eurPlnRate, pctChange, toBaseMinor } from "@/lib/money";
+import type { DataMode } from "@prisma/client";
+import { getFx } from "@/lib/fx";
+import { modeFilter } from "@/lib/mode";
+import { discountPct, pctChange, toBaseMinor } from "@/lib/money";
 
 const DAY = 86_400_000;
 
 /**
  * Recompute the denormalised market aggregates for one product (base currency).
  * "Lowest" always means the lowest *in-stock* price among matched offers.
+ * Aggregates are kept separately per DataMode so demo and live prices never mix.
  */
-export async function recomputeProductStats(prisma: PrismaClient, productId: string, now: Date): Promise<void> {
-  const rate = eurPlnRate();
+export async function recomputeProductStats(prisma: PrismaClient, productId: string, mode: DataMode, now: Date): Promise<void> {
+  const { rate } = await getFx(prisma);
   const offers = await prisma.retailerProduct.findMany({
-    where: { productId, matchStatus: { in: ["AUTO_EAN", "AUTO_ATTRIBUTES", "MANUAL"] } },
+    where: { productId, matchStatus: { in: ["AUTO_EAN", "AUTO_ATTRIBUTES", "MANUAL"] }, retailer: modeFilter(mode) },
   });
   const inStock = offers.filter((o) => o.availability === "IN_STOCK");
   const prices = inStock.map((o) => ({ id: o.retailerId, base: toBaseMinor(o.priceMinor, o.currency, rate) }));
@@ -81,5 +85,10 @@ export async function recomputeProductStats(prisma: PrismaClient, productId: str
     maxClaimedDiscount: claimed.length ? Math.max(...claimed) : null,
     lastCheckedAt: lastChecked,
   };
-  await prisma.productStats.upsert({ where: { productId }, create: { productId, ...data }, update: data });
+  if (offers.length === 0) {
+    // No offers in this mode: the product simply does not exist in that market view.
+    await prisma.productStats.deleteMany({ where: { productId, mode } });
+    return;
+  }
+  await prisma.productStats.upsert({ where: { productId_mode: { productId, mode } }, create: { productId, mode, ...data }, update: data });
 }

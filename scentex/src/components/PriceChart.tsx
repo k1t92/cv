@@ -36,7 +36,7 @@ function Stat({ label, value, tone = "" }: { label: string; value: string; tone?
   );
 }
 
-export function PriceChart({ slug, currency }: { slug: string; currency: CurrencyCode }) {
+export function PriceChart({ slug, currency, mode }: { slug: string; currency: CurrencyCode; mode: "LIVE" | "DEMO" }) {
   const [range, setRange] = useState<RangeKey>("1M");
   const [status, setStatus] = useState<Status>({ kind: "loading" });
   const [compare, setCompare] = useState<Set<string>>(new Set());
@@ -47,7 +47,7 @@ export function PriceChart({ slug, currency }: { slug: string; currency: Currenc
   useEffect(() => {
     const controller = new AbortController();
     setStatus({ kind: "loading" });
-    fetch(`/api/products/${slug}/history?range=${range}&currency=${currency}`, { signal: controller.signal })
+    fetch(`/api/products/${slug}/history?range=${range}&currency=${currency}&mode=${mode.toLowerCase()}`, { signal: controller.signal })
       .then(async (res) => {
         const body = await res.json();
         if (!res.ok) throw new Error(body.error ?? "Request failed");
@@ -58,7 +58,7 @@ export function PriceChart({ slug, currency }: { slug: string; currency: Currenc
         setStatus({ kind: "error", message: error instanceof Error ? error.message : "Request failed" });
       });
     return () => controller.abort();
-  }, [slug, range, currency, attempt]);
+  }, [slug, range, currency, mode, attempt]);
 
   const data = status.kind === "ready" ? status.data : null;
   const hasPoints = Boolean(data?.lowest.some((p) => p.v != null));
@@ -145,7 +145,7 @@ export function PriceChart({ slug, currency }: { slug: string; currency: Currenc
             </button>
           ))}
         </div>
-        <span className="text-xs text-muted">Drag to pan · scroll to zoom</span>
+        <span className="text-xs text-muted"><span className={mode === "LIVE" ? "text-fall" : "text-gold"}>{mode === "LIVE" ? "LIVE DATA" : "DEMO DATA"}</span> · drag to pan · scroll to zoom</span>
       </div>
 
       <div className="flex flex-wrap divide-x divide-line border-b border-line">

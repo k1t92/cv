@@ -19,6 +19,10 @@ async function chunked<T>(rows: T[], size: number, write: (chunk: T[]) => Promis
 
 async function main() {
   const now = new Date();
+  const live = await prisma.retailer.count({ where: { sourceKind: { not: "DEMO" } } });
+  if (live > 0 && !process.argv.includes("--force")) {
+    throw new Error(`Refusing to seed: ${live} LIVE source(s) exist and seeding wipes all price history. Re-run with --force to proceed.`);
+  }
   console.log("Clearing existing data…");
   await prisma.$transaction([
     prisma.notification.deleteMany(), prisma.priceAlert.deleteMany(), prisma.watchlistItem.deleteMany(),
@@ -61,7 +65,7 @@ async function main() {
     const row = await prisma.retailer.create({
       data: {
         slug: retailer.slug, name: retailer.name, country: retailer.country, currency: retailer.currency,
-        websiteUrl: retailer.websiteUrl, sourceKind: "DEMO", adapterKey: "demo", lastRunAt: now,
+        websiteUrl: retailer.websiteUrl, sourceKind: "DEMO", adapterKey: "demo", lastRunAt: now, lastStatus: "SUCCEEDED", lastOfferCount: null,
       },
     });
     let seen = 0;
@@ -115,7 +119,7 @@ async function main() {
   await prisma.scraperJob.createMany({ data: jobs });
 
   console.log("Computing product stats…");
-  for (const candidate of candidates) await recomputeProductStats(prisma, candidate.id, now);
+  for (const candidate of candidates) await recomputeProductStats(prisma, candidate.id, "DEMO", now);
   console.log(`Seeded ${DEMO_BRANDS.length} brands, ${candidates.length} products, ${DEMO_RETAILERS.length} DEMO retailers.`);
 }
 

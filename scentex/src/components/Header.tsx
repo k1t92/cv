@@ -1,10 +1,11 @@
 import Link from "next/link";
 import { getDictionary } from "@/i18n";
 import type { CurrencyCode } from "@/lib/money";
-import { CURRENCY_COOKIE } from "@/lib/prefs";
-import { CurrencyToggle } from "./CurrencyToggle";
+import type { DataMode } from "@prisma/client";
+import { CURRENCY_COOKIE, MODE_COOKIE } from "@/lib/prefs";
+import { CookieToggle } from "./CurrencyToggle";
 
-export function Header({ currency }: { currency: CurrencyCode }) {
+export function Header({ currency, mode }: { currency: CurrencyCode; mode: DataMode }) {
   const t = getDictionary();
   return (
     <header className="sticky top-0 z-30 border-b border-line bg-bg/90 backdrop-blur">
@@ -23,8 +24,15 @@ export function Header({ currency }: { currency: CurrencyCode }) {
             className="w-full rounded-md border border-line bg-panel px-3 py-1.5 text-sm text-ink placeholder:text-faint hover:border-faint"
           />
         </form>
-        <div className="ml-auto sm:ml-0">
-          <CurrencyToggle current={currency} cookieName={CURRENCY_COOKIE} />
+        <div className="ml-auto flex items-center gap-2 sm:ml-0">
+          <CookieToggle
+            label="Data set" current={mode} cookieName={MODE_COOKIE}
+            options={[
+              { value: "LIVE", label: "LIVE", activeClass: "bg-fall/15 text-fall" },
+              { value: "DEMO", label: "DEMO", activeClass: "bg-gold/15 text-gold" },
+            ]}
+          />
+          <CookieToggle label="Display currency" current={currency} cookieName={CURRENCY_COOKIE} options={[{ value: "PLN", label: "PLN" }, { value: "EUR", label: "EUR" }]} />
         </div>
       </div>
     </header>

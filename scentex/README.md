@@ -3,32 +3,47 @@
 A price-tracking terminal for fragrances: lowest current price across retailers, stored price
 history, real price drops vs. store-claimed discounts. Target markets: Poland first, then the EU.
 
-> **Status: Phase 1 (foundation).** The application, database, ingest pipeline and charts are real
-> and working. **The prices are not.** No retailer source is connected yet, so the database is
-> seeded with clearly labelled synthetic *demo* data (`Retailer.sourceKind = DEMO`). The UI shows a
-> demo banner on every page while any demo source is enabled.
+> **Status: Phase 2 (real-data infrastructure).** Everything needed to import, store, schedule,
+> monitor and display real prices is built. **No retailer feeds real prices yet** — every realistic
+> source needs an affiliate-network account the project does not have (see [DATA_SOURCES.md](DATA_SOURCES.md)).
+> The only live data today is the NBP EUR/PLN reference rate. Demo prices remain available, strictly
+> separated and labelled.
+
+## DEMO vs LIVE
+
+- A source (`Retailer`) is **DEMO** when `sourceKind = DEMO`, otherwise **LIVE**.
+- Aggregates are stored per mode (`ProductStats` key = product + mode); offers, charts, change logs
+  and every query filter by mode. A page or API response contains one mode only — never a mix.
+- The site shows **LIVE** by default as soon as one live source is enabled. While none exists it
+  defaults to DEMO under a gold "DEMO DATA" banner. The header switch lets a visitor choose; LIVE
+  with no source shows empty states, not demo numbers.
+- `GET /api/products/{slug}/history?range=1M&currency=PLN&mode=live|demo` returns `"mode"` in the payload.
+- Product JSON-LD carries offers only in LIVE mode.
 
 ## What works today
 
 | Area | State |
 |---|---|
-| Market overview (`/`) | KPIs, 24h fallers/risers, new price lows, latest changes, brand moves, Market Watch table with search, brand/concentration filters, sorting on every column, pagination |
-| Catalogue (`/perfumes`) | Card grid with the same search/filters, sort presets, pagination |
-| Product terminal (`/perfumes/[slug]`) | Offers from every retailer (price, 'was' price, claimed discount, shipping, total, stock, last check, link), cheapest offer detection, interactive chart (24H–ALL, zoom/pan, crosshair tooltip, per-retailer comparison), period min/max/avg/change, price-change log with sort + retailer filter |
-| PLN / EUR | Header toggle (cookie). Static FX rate from `EUR_PLN_RATE` |
-| Data engine core | Adapter interface, validation (zod), dedupe, product matching, change detection, plausibility quarantine, retry, job log, stats recompute — exercised by `npm run engine:demo-tick` |
-| SEO | Per-product metadata, canonical, Open Graph, `sitemap.xml`, `robots.txt`, JSON-LD (offers are withheld while prices are demo) |
-| Tests | 23 unit tests: matching, change detection, series maths, money |
+| Market overview, catalogue, product terminal | As in Phase 1, now mode-aware with LIVE / DEMO badges |
+| Feed importer | CSV / XML / JSON / JSON Lines, gzip, auto delimiter + record detection, field-mapping presets: Awin CSV, Google Shopping XML, Ceneo XML, Shopify JSON, generic CSV. Per-source include/exclude regex and field overrides |
+| Generic `feed` adapter | A retailer with a product feed is connected in `/admin` with no code |
+| Quality control | Schema validation, currency must equal the source's, dedupe by listing id, implausible single-step moves quarantined, 'was' price ≤ price dropped, run aborted if the feed shrinks >50%, vanished listings marked unavailable, rejects counted per run |
+| Scheduler | `npm run worker`: runs due sources each minute (per-source interval, exponential back-off after failures, PostgreSQL advisory lock against double runs), refreshes FX every 6 h |
+| FX | Live NBP table A rates stored with history (`ExchangeRate`) |
+| Admin (`/admin`) | Token login; sources with status / last + next run / offer and match counts; add, edit, enable, disable, run now, delete with history; import log; FX refresh; match-review queue (link, create product, reject) |
+| Tests | 40 unit tests |
 
 ## Not built yet (and not pretended)
 
-- **Real price sources.** Zero. See "Data-source risk" below — this is the project's critical path.
-- Scheduler/queue (BullMQ + Redis), rate limiter, per-source intervals — Phase 2. Today ingest is run by a script.
-- Accounts, watchlist, alerts, notifications — Phase 3. Tables exist in the schema; nothing writes to them.
-- Deals page, Brand explorer, Retailer comparison, Admin panel — Phase 4. Unmatched listings are already stored as `PENDING_REVIEW` for the future review queue.
-- Polish locale: strings live in `src/i18n/en.ts`; adding `pl.ts` + a locale switch is the remaining work. Client-component strings (chart, data table) are not yet routed through the dictionary.
-- Product photos: placeholder glyphs only (no licensed image source).
-- Unknown product URLs return the not-found page with `noindex` but HTTP 200 (streamed response), not a hard 404.
+- **A live retailer source.** Blocked on access, not on code.
+- End-to-end import of a real feed has therefore never run. Each layout is covered by unit tests on
+  synthetic fixtures; column names for Awin/Ceneo come from their public documentation and may need
+  adjusting on first contact with a real file (per-source field overrides exist for that).
+- Feeds are parsed in memory (250 MB cap). Multi-GB feeds would need a streaming parser.
+- Redis/BullMQ: deliberately not used. One worker with PostgreSQL state is enough until several workers are needed.
+- Accounts, watchlist, alerts — Phase 3. Deals page, brand explorer, retailer comparison — Phase 4.
+- Polish locale, product photos, hard 404 status for unknown products — unchanged from Phase 1.
+- Admin auth is a single shared token; no per-user accounts or audit trail.
 
 ## Run it
 
@@ -39,12 +54,16 @@ cp .env.example .env
 npm install
 npm run db:up          # or point DATABASE_URL at any PostgreSQL
 npm run db:migrate
-npm run db:seed        # DEMO market: 52 fragrances, 8 retailers, history since 2026-05-01
-npm run dev            # http://localhost:3000
+npm run db:seed        # optional DEMO market: 52 fragrances, 8 demo retailers (refuses to run if live sources exist)
+npm run engine:fx      # fetch live EUR/PLN rates from NBP
+npm run dev            # http://localhost:3000   (admin: /admin, needs ADMIN_TOKEN in .env)
+npm run worker         # scheduler: imports due sources, refreshes FX
 ```
 
-Other commands: `npm run typecheck`, `npm test`, `npm run build`, `npm run engine:demo-tick`
-(runs every retailer adapter once through the real ingest pipeline), `npm run db:reset`.
+Other commands: `npm run typecheck`, `npm test`, `npm run build`, `npm run engine:run [-- <slug>]`
+(run all sources, or one, immediately), `npm run db:reset`.
+
+Behind an HTTP proxy set `NODE_USE_ENV_PROXY=1` (Node 22.21+) so the importer honours `HTTPS_PROXY`.
 
 ## Architecture
 
@@ -52,13 +71,17 @@ Other commands: `npm run typecheck`, `npm test`, `npm run build`, `npm run engin
 prisma/schema.prisma        data model (+ migrations/, seed.ts)
 src/engine/                 DATA ENGINE — no UI imports
   types.ts                  RawOffer (the standard adapter output) + RetailerAdapter interface
-  adapters/                 one file per source; index.ts is the registry (only `demo` today)
+  adapters/                 registry: `feed` (any CSV/XML/JSON feed, configured in /admin) and `demo`
+  feeds/                    fetch (gzip, auth header), parse, field-mapping presets, record → RawOffer
+  scheduler.ts, fx.ts       due-source runner with back-off + locking; NBP rates
   matching.ts               EAN → brand+line+concentration+volume → else manual review
   transition.ts             change detection + plausibility rule (pure)
   ingest.ts                 fetch→validate→dedupe→match→detect→store→recompute, writes ScraperJob
   stats.ts                  per-product aggregates (ProductStats)
   demo/                     deterministic synthetic market (catalogue + simulator)
-src/lib/                    db client, money, formatting, series maths, read queries
+src/lib/                    db client, money, fx, data mode, formatting, series maths, read queries, admin auth
+src/app/admin/              admin panel (server actions)
+scripts/                    worker, manual run, FX refresh
 src/app/                    Next.js App Router pages + /api/products/[slug]/history
 src/components/             UI (server components by default; chart/table/toggle are client)
 tests/                      vitest
@@ -83,29 +106,18 @@ Decisions and why:
 - **Prisma 6 / Tailwind 4 / hand-written components.** shadcn/ui was not pulled in: the handful of
   primitives needed are ~100 lines and carry no dependency.
 
-## Connecting a real retailer (Phase 2)
+## Connecting a real retailer
 
-1. Implement `RetailerAdapter` in `src/engine/adapters/<name>.ts`, returning `RawOffer[]`.
-2. Register it in `src/engine/adapters/index.ts`.
-3. Create the `Retailer` row with that `adapterKey` and the true `sourceKind`.
-4. Disable/delete the demo retailers so synthetic and real prices never mix.
+1. Obtain a feed you are entitled to use (affiliate programme or the retailer's own export) — see DATA_SOURCES.md.
+2. `/admin` → **Add source**: name, country, currency, feed URL, layout. It is created disabled.
+3. **Run now**. Check the import log (rejected / unmatched) and work through **Match review**.
+4. **Enable** it; the worker takes over. Disable the demo sources when you no longer want them.
 
-## Data-source risk (read before investing more time)
-
-| Source type | Reality | Verdict |
-|---|---|---|
-| Affiliate product feeds (Awin, CJ, TradeDoubler, Notino/Douglas/Flaconi programmes) | Legal, structured, include EAN + price + URL. Require an approved publisher account with a live site; refresh is typically daily, not minutes | **Primary path** |
-| Official retailer APIs | Not publicly offered by Sephora/Douglas/Notino for price data | Don't plan on it |
-| Ceneo / Idealo | Aggregators; their terms generally forbid re-aggregating their data | Partnership only |
-| Scraping public pages | Most large retailers run anti-bot protection and prohibit it in their terms; bypassing it is out of scope by design | Only where robots.txt and terms permit |
-| Schema.org structured data | Good quality where pages are fetchable, same access constraints as scraping | Supplementary |
-
-Consequences: no history exists before the day a source is connected (start collecting early);
-refresh will be hours-to-daily for feed sources, so the UI always states "last checked", never
-"real-time"; EAN coverage in feeds decides how much manual matching is needed.
+A source with a bespoke API (not a feed) implements `RetailerAdapter` in `src/engine/adapters/` and
+is registered in `index.ts`; nothing else in the core changes.
 
 ## Roadmap
 
-- **Phase 2 — price engine:** first affiliate-feed adapter, BullMQ scheduler with per-source intervals and rate limits, FX rates feed, source health monitoring.
+- **Phase 2 — remaining:** obtain feed access and run the first live import (owner action, see DATA_SOURCES.md); then tune mappings and EAN coverage on real data.
 - **Phase 3 — users:** Auth.js, watchlist, price alerts, in-app notifications.
 - **Phase 4 — expansion:** Deals, Brand explorer, Retailer comparison, Admin (match review, job log, manual runs), email/Telegram, Polish locale.

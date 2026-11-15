@@ -1,3 +1,4 @@
+import type { Retailer } from "@prisma/client";
 import { z } from "zod";
 
 /**
@@ -30,5 +31,5 @@ export interface AdapterContext {
 export interface RetailerAdapter {
   /** Matches Retailer.adapterKey. */
   key: string;
-  fetchOffers(retailer: { slug: string; currency: "PLN" | "EUR"; websiteUrl: string }, ctx: AdapterContext): Promise<RawOffer[]>;
+  fetchOffers(retailer: Retailer, ctx: AdapterContext): Promise<RawOffer[]>;
 }

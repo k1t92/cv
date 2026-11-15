@@ -2,8 +2,14 @@
 export const en = {
   nav: { market: "Market", perfumes: "Perfumes", search: "Search fragrance or brand" },
   demo: {
-    banner: "Demo data — prices are synthetic and are not quotes from the retailers named. No live source is connected yet.",
-    tag: "DEMO",
+    banner: "Demo data — prices are synthetic and are not quotes from the retailers named.",
+    tag2: "DEMO DATA",
+    tag: "DEMO DATA",
+  },
+  live: {
+    tag: "LIVE DATA",
+    banner: "Prices observed from connected retailer sources.",
+    none: "No live price source is connected yet, so there is nothing to show. Switch to DEMO in the header to explore the product with synthetic data.",
   },
   home: {
     title: "Perfume market overview",
@@ -40,7 +46,6 @@ export const en = {
     date: "Date", previous: "Previous", next: "New", change: "Change", changePct: "Change %",
   },
   footer: {
-    fx: "Currency conversion uses a static configured rate",
     note: "SCENTEX tracks listed prices. Always confirm the final price at the retailer before buying.",
   },
 } as const;

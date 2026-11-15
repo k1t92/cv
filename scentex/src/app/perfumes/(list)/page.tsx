@@ -5,7 +5,9 @@ import { Badge, BottleGlyph, Change, Empty, Pagination, Panel } from "@/componen
 import { getDictionary } from "@/i18n";
 import { CONCENTRATION_LONG, formatMoney } from "@/lib/format";
 import { convertMinor } from "@/lib/money";
-import { getCurrency } from "@/lib/prefs";
+import { prisma } from "@/lib/db";
+import { getFx } from "@/lib/fx";
+import { getCurrency, getMode } from "@/lib/prefs";
 import { listBrands, listMarket, marketHref, parseMarketQuery, type SortKey } from "@/lib/queries";
 
 export const metadata: Metadata = {
@@ -24,11 +26,12 @@ const SORTS: { label: string; sort: SortKey; dir: "asc" | "desc" }[] = [
 export default async function PerfumesPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const t = getDictionary();
   const query = parseMarketQuery(await searchParams, { sort: "name", dir: "asc" });
-  const [currency, brands, market] = await Promise.all([getCurrency(), listBrands(), listMarket(query, 24)]);
+  const { mode } = await getMode();
+  const [currency, { rate }, brands, market] = await Promise.all([getCurrency(), getFx(prisma), listBrands(), listMarket(query, 24, mode)]);
 
   return (
     <div className="space-y-4">
-      <h1 className="text-xl font-medium tracking-tight">{t.nav.perfumes}</h1>
+      <h1 className="flex items-center gap-3 text-xl font-medium tracking-tight">{t.nav.perfumes} <Badge tone={mode === "LIVE" ? "fall" : "gold"}>{mode === "LIVE" ? t.live.tag : t.demo.tag}</Badge></h1>
       <Panel>
         <MarketFilters basePath="/perfumes" query={query} brands={brands} />
         <div className="flex flex-wrap items-center gap-2 border-b border-line px-4 py-3">
@@ -62,7 +65,7 @@ export default async function PerfumesPage({ searchParams }: { searchParams: Pro
                     <div className="mt-auto flex items-end justify-between gap-2">
                       <div>
                         <div className="label">{t.table.lowest}</div>
-                        <div className="num text-lg font-medium">{formatMoney(row.lowestMinor == null ? null : convertMinor(row.lowestMinor, "PLN", currency), currency)}</div>
+                        <div className="num text-lg font-medium">{formatMoney(row.lowestMinor == null ? null : convertMinor(row.lowestMinor, "PLN", currency, rate), currency)}</div>
                         <div className="text-xs text-muted">{row.inStockCount} of {row.offersCount} offers in stock</div>
                       </div>
                       <div className="text-right">
