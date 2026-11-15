@@ -6,10 +6,13 @@ import { z } from "zod";
  * Adapters do the fetching and source-specific parsing; everything downstream
  * (validation, matching, change detection, storage) is shared.
  */
+/** Only web links: a feed must not be able to plant javascript:, data: or file: URLs in our pages. */
+const webUrl = z.string().max(2000).url().refine((value) => /^https?:\/\//i.test(value), "must be an http(s) URL");
+
 export const rawOfferSchema = z.object({
-  externalId: z.string().min(1),
-  title: z.string().min(3),
-  brand: z.string().min(1).optional(),
+  externalId: z.string().min(1).max(200),
+  title: z.string().min(3).max(500),
+  brand: z.string().min(1).max(120).optional(),
   ean: z.string().regex(/^\d{8,14}$/).optional(),
   volumeMl: z.number().int().positive().max(2000).optional(),
   concentration: z.enum(["EDC", "EDT", "EDP", "PARFUM", "EXTRAIT", "OTHER"]).optional(),
@@ -17,8 +20,8 @@ export const rawOfferSchema = z.object({
   originalPriceMinor: z.number().int().positive().optional(),
   currency: z.enum(["PLN", "EUR"]),
   availability: z.enum(["IN_STOCK", "OUT_OF_STOCK", "UNKNOWN"]),
-  url: z.string().url(),
-  imageUrl: z.string().url().optional(),
+  url: webUrl,
+  imageUrl: webUrl.optional(),
   shippingMinor: z.number().int().nonnegative().optional(),
 });
 

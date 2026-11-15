@@ -45,13 +45,13 @@ export default async function SourcePage({ params, searchParams }: { params: Pro
             <select name="feedPreset" defaultValue={source?.feedPreset ?? "awin-csv"} className={input}>{FEED_PRESETS.map((p) => <option key={p.key} value={p.key}>{p.label}</option>)}</select>
           </Field>
           <div className="sm:col-span-2">
-            <Field label="Feed URL" hint="Stored in the database. If the URL itself contains a secret key, anyone with database access can read it."><input name="feedUrl" type="url" required defaultValue={source?.feedUrl ?? ""} className={input} /></Field>
+            <Field label="Feed URL" hint="https only, public hosts only. Keep keys out of the database: write ${FEED_AWIN_KEY} in the URL and set that environment variable on the server."><input name="feedUrl" type="url" required defaultValue={source?.feedUrl ?? ""} className={input} /></Field>
           </div>
           <Field label="Refresh interval (minutes)" hint="Minimum 60. Most affiliate feeds regenerate once a day (1440).">
             <input name="intervalMinutes" type="number" min={60} max={10080} required defaultValue={source?.intervalMinutes ?? 1440} className={input} />
           </Field>
-          <Field label="Auth header env var (optional)" hint='Name of an environment variable containing "Header-Name: value".'>
-            <input name="authHeaderEnv" placeholder="FEED_AUTH_EXAMPLE" defaultValue={source?.authHeaderEnv ?? ""} className={input} />
+          <Field label="Auth header env var (optional)" hint='Name of a FEED_* environment variable containing "Header-Name: value". Sent to the feed host only, never to redirects.'>
+            <input name="authHeaderEnv" placeholder="FEED_EXAMPLE_AUTH" defaultValue={source?.authHeaderEnv ?? ""} className={input} />
           </Field>
           <Field label="Include pattern (optional)" hint="Regex on title + category. Use it to keep only fragrance rows of a general beauty feed.">
             <input name="includePattern" placeholder="perfum|parfum|toilette|cologne" defaultValue={options.includePattern ?? ""} className={input} />

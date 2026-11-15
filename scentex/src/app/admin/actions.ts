@@ -7,6 +7,7 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { slugify } from "@/engine/demo/catalog";
 import { getPreset } from "@/engine/feeds/presets";
+import { assertPublicUrl, isFeedSecretName, resolveSecrets } from "@/engine/feeds/safe-url";
 import { refreshNbpRates } from "@/engine/fx";
 import { parseTitle, normalizeBrand } from "@/engine/matching";
 import { runSource } from "@/engine/scheduler";
@@ -18,9 +19,20 @@ import { modeOf } from "@/lib/mode";
 const back = (path: string, message: string, kind: "ok" | "error" = "ok"): never =>
   redirect(`${path}?${kind}=${encodeURIComponent(message.slice(0, 300))}`);
 
+// Brute-force brake. In-memory, so it is per server instance; put a WAF / rate limit in front in production.
+const attempts: number[] = [];
+const MAX_ATTEMPTS = 8;
+const WINDOW_MS = 15 * 60_000;
+
 export async function login(form: FormData) {
+  const now = Date.now();
+  while (attempts.length && now - attempts[0]! > WINDOW_MS) attempts.shift();
+  if (attempts.length >= MAX_ATTEMPTS) back("/admin/login", "Too many attempts. Try again in 15 minutes.", "error");
   const token = String(form.get("token") ?? "");
-  if (!tokenMatches(token)) back("/admin/login", "Wrong token", "error");
+  if (!tokenMatches(token)) {
+    attempts.push(now);
+    back("/admin/login", "Wrong token", "error");
+  }
   (await cookies()).set(ADMIN_COOKIE, sessionValue(), { httpOnly: true, sameSite: "strict", secure: process.env.NODE_ENV === "production", path: "/", maxAge: 60 * 60 * 12 });
   redirect("/admin");
 }
@@ -41,12 +53,12 @@ const sourceSchema = z.object({
   name: z.string().trim().min(2).max(60),
   country: z.string().trim().toUpperCase().regex(/^[A-Z]{2}$/, "Country must be a 2-letter code"),
   currency: z.enum(["PLN", "EUR"]),
-  websiteUrl: z.string().trim().url(),
+  websiteUrl: z.string().trim().max(300).url().refine((u) => /^https:\/\//i.test(u), "Storefront URL must start with https://"),
   sourceKind: z.enum(["API", "AFFILIATE_FEED", "XML_CSV_FEED", "STRUCTURED_DATA"]),
-  feedUrl: z.string().trim().url().refine((u) => /^https?:\/\//.test(u), "Feed URL must be http(s)"),
+  feedUrl: z.string().trim().max(2000).refine((u) => /^https:\/\//i.test(u), "Feed URL must start with https://"),
   feedPreset: z.string().refine((key) => Boolean(getPreset(key)), "Unknown feed layout"),
   intervalMinutes: z.coerce.number().int().min(60, "Minimum interval is 60 minutes").max(10080),
-  authHeaderEnv: z.string().trim().regex(/^[A-Z][A-Z0-9_]*$/, "Use an ENV_VAR_NAME").optional().or(z.literal("")),
+  authHeaderEnv: z.string().trim().refine(isFeedSecretName, "Must be an environment variable named FEED_…").optional().or(z.literal("")),
   includePattern: z.string().trim().max(300).optional(),
   excludePattern: z.string().trim().max(300).optional(),
 });
@@ -64,6 +76,12 @@ export async function saveSource(form: FormData) {
     } catch {
       back(path, `Invalid regular expression: ${pattern}`, "error");
     }
+  }
+  // SSRF check at save time for fast feedback; it is enforced again on every download.
+  try {
+    await assertPublicUrl(resolveSecrets(input.feedUrl));
+  } catch (error) {
+    back(path, error instanceof Error ? error.message : "Feed URL was refused", "error");
   }
   const preset = getPreset(input.feedPreset)!;
   const data = {

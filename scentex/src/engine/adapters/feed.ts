@@ -1,4 +1,5 @@
 import { fetchFeed } from "../feeds/fetch";
+import { isFeedSecretName } from "../feeds/safe-url";
 import { mapRecord, type MappingContext } from "../feeds/mapping";
 import { parseFeed } from "../feeds/parse";
 import { getPreset } from "../feeds/presets";
@@ -25,6 +26,8 @@ export const feedAdapter: RetailerAdapter = {
 
     let authHeader: string | undefined;
     if (retailer.authHeaderEnv) {
+      // Only FEED_* variables may be sent to a feed host, so a source can never exfiltrate other secrets.
+      if (!isFeedSecretName(retailer.authHeaderEnv)) throw new Error("Auth header variable must be named FEED_*");
       authHeader = process.env[retailer.authHeaderEnv];
       if (!authHeader) throw new Error(`Environment variable ${retailer.authHeaderEnv} is not set`);
     }
