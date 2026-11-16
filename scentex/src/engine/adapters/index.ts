@@ -1,6 +1,7 @@
 import type { RetailerAdapter } from "../types";
 import { demoAdapter } from "./demo";
 import { feedAdapter } from "./feed";
+import { publicAdapter } from "./public";
 
 /**
  * Adapter registry, keyed by Retailer.adapterKey.
@@ -10,6 +11,7 @@ import { feedAdapter } from "./feed";
 const adapters: Record<string, RetailerAdapter> = {
   [demoAdapter.key]: demoAdapter,
   [feedAdapter.key]: feedAdapter,
+  [publicAdapter.key]: publicAdapter,
 };
 
 export function getAdapter(key: string): RetailerAdapter | undefined {

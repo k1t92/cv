@@ -94,6 +94,12 @@ export interface UrlPolicy {
   /** Tests only. Never derived from configuration, the database or user input. */
   allowPrivateForTests?: boolean;
   resolver?: Resolver;
+  /**
+   * Set only when traffic leaves through a mandatory egress proxy that resolves names itself
+   * (the local network may have no DNS at all). Scheme, port, credentials, host-name and
+   * IP-literal checks still apply; resolution-based checks become the proxy's responsibility.
+   */
+  resolvedByEgressProxy?: boolean;
 }
 
 /**
@@ -124,6 +130,7 @@ export async function assertPublicUrl(raw: string, policy: UrlPolicy = {}): Prom
   const literal = isIP(host);
   let addresses: { address: string; family: number }[];
   if (literal) addresses = [{ address: host, family: literal }];
+  else if (policy.resolvedByEgressProxy) return { url, addresses: [] };
   else {
     try {
       addresses = await (policy.resolver ?? systemResolver)(host);

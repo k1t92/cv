@@ -9,7 +9,9 @@ async function main() {
   const slug = process.argv[2];
   const retailers = await prisma.retailer.findMany({ where: slug ? { slug } : { enabled: true }, orderBy: { slug: "asc" } });
   if (!retailers.length) throw new Error(slug ? `No source "${slug}"` : "No sources found. Run `npm run db:seed` first.");
-  for (const retailer of retailers) console.log(JSON.stringify(await runSource(prisma, retailer)));
+  // SCENTEX_ALLOW_NO_CONTACT=1 permits a supervised test run of a public source before BOT_CONTACT is set.
+  const allowNoContact = process.env.SCENTEX_ALLOW_NO_CONTACT === "1";
+  for (const retailer of retailers) console.log(JSON.stringify(await runSource(prisma, retailer, new Date(), { allowNoContact })));
 }
 
 main()

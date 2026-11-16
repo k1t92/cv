@@ -54,6 +54,28 @@ enum FeedFormat {
   JSONL
 }
 
+/// Result of the public-access audit for a source (see DATA_SOURCE_AUDIT.md).
+enum AccessStatus {
+  PUBLIC_ACCESS_SUPPORTED
+  PARTIALLY_SUPPORTED
+  REQUIRES_PARTNERSHIP
+  RESTRICTED
+  NOT_VERIFIED
+}
+
+enum PageStatus {
+  PENDING
+  OK
+  NOT_FRAGRANCE
+  NO_PRODUCT
+  NO_PRICE
+  AMBIGUOUS_PRICE
+  UNSUPPORTED_CURRENCY
+  GONE
+  DISALLOWED
+  ERROR
+}
+
 enum MatchStatus {
   AUTO_EAN
   AUTO_ATTRIBUTES
@@ -167,6 +189,16 @@ model Retailer {
   /// Name of the env var holding an auth header value ("Header-Name: value"). Secrets never live in the DB.
   authHeaderEnv       String?
   intervalMinutes     Int               @default(1440)
+  // ---- public-page collection ----
+  accessStatus        AccessStatus      @default(NOT_VERIFIED)
+  /// CrawlConfig JSON (src/engine/crawl/stores.ts): sitemap + URL filters + pacing
+  crawlConfig         Json?
+  robotsTxt           String?
+  robotsFetchedAt     DateTime?
+  /// Set when the site refused automated access; collection stays off until an admin reviews it.
+  blockedAt           DateTime?
+  blockedReason       String?
+  pages               CrawlPage[]
   // ---- health ----
   lastStatus          JobStatus?
   lastError           String?
@@ -364,4 +396,30 @@ model ExchangeRate {
 
   @@unique([base, quote, effectiveDate, source])
   @@index([base, quote, effectiveDate])
+}
+
+/// A URL known for a source: a sitemap document or a product page, with its fetch state.
+model CrawlPage {
+  id             String     @id @default(cuid())
+  retailerId     String
+  retailer       Retailer   @relation(fields: [retailerId], references: [id], onDelete: Cascade)
+  url            String
+  isSitemap      Boolean    @default(false)
+  priority       Int        @default(0)
+  sitemapLastmod DateTime?
+  etag           String?
+  lastModified   String?
+  status         PageStatus @default(PENDING)
+  httpStatus     Int?
+  detail         String?
+  /// Offers from the last successful extraction, replayed when the server answers 304 Not Modified.
+  lastOffers     Json?
+  firstSeenAt    DateTime   @default(now())
+  lastFetchedAt  DateTime?
+  nextCheckAt    DateTime   @default(now())
+  failures       Int        @default(0)
+
+  @@unique([retailerId, url])
+  @@index([retailerId, isSitemap, nextCheckAt])
+  @@index([retailerId, status])
 }

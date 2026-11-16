@@ -32,7 +32,9 @@ describe("title parsing", () => {
   it("normalises brand aliases and strips noise from the line name", () => {
     expect(normalizeBrand("Christian Dior")).toBe("dior");
     expect(normalizeBrand("YSL")).toBe("yves saint laurent");
-    expect(parseTitle("DIOR Sauvage Eau de Parfum Spray 100 ml for Men", "Dior").nameKey).toBe("sauvage");
+    expect(parseTitle("DIOR Sauvage Eau de Parfum Spray 100 ml", "Dior").nameKey).toBe("sauvage");
+    expect(parseTitle("Chanel Chance EDT 100 ml W", "Chanel").nameKey).toBe("chance");
+    expect(parseTitle("Versace Woman Woda perfumowana dla kobiet 50 ml", "Versace").nameKey).toBe("woman");
   });
 });
 

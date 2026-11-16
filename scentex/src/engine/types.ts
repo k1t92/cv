@@ -1,4 +1,4 @@
-import type { Retailer } from "@prisma/client";
+import type { PrismaClient, Retailer } from "@prisma/client";
 import { z } from "zod";
 
 /**
@@ -29,10 +29,20 @@ export type RawOffer = z.infer<typeof rawOfferSchema>;
 
 export interface AdapterContext {
   now: Date;
+  prisma: PrismaClient;
+  /** Manual, operator-supervised test runs only: permit collection before BOT_CONTACT is configured. */
+  allowNoContact?: boolean;
+  /** Adapter-reported problems that did not prevent returning data; they turn the run into PARTIAL. */
+  warnings: string[];
 }
 
 export interface RetailerAdapter {
   /** Matches Retailer.adapterKey. */
   key: string;
+  /**
+   * true = each run returns only a slice of the source (e.g. a batch of crawled pages), so absence
+   * from a run says nothing about a listing. false = each run is the full catalogue (feeds).
+   */
+  partial?: boolean;
   fetchOffers(retailer: Retailer, ctx: AdapterContext): Promise<RawOffer[]>;
 }

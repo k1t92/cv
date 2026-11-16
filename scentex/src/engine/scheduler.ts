@@ -13,14 +13,14 @@ export function isDue(source: Pick<Retailer, "enabled" | "lastRunAt" | "interval
   return source.enabled && nextRunAt(source) <= now;
 }
 
-export async function runSource(prisma: PrismaClient, retailer: Retailer, now = new Date()): Promise<RunSummary> {
+export async function runSource(prisma: PrismaClient, retailer: Retailer, now = new Date(), options: { allowNoContact?: boolean } = {}): Promise<RunSummary> {
   const adapter = getAdapter(retailer.adapterKey);
   if (!adapter) throw new Error(`No adapter registered for "${retailer.adapterKey}"`);
   // One run per source at a time, across every process (web "run now" + worker).
   const [lock] = await prisma.$queryRaw<{ locked: boolean }[]>`SELECT pg_try_advisory_lock(hashtext(${"scentex:" + retailer.id})) AS locked`;
   if (!lock?.locked) throw new Error("This source is already being imported");
   try {
-    return await runAdapter(prisma, retailer, adapter, now);
+    return await runAdapter(prisma, retailer, adapter, now, options);
   } finally {
     await prisma.$queryRaw`SELECT pg_advisory_unlock(hashtext(${"scentex:" + retailer.id}))`;
   }

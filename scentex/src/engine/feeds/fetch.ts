@@ -1,10 +1,16 @@
 import http from "node:http";
 import https from "node:https";
+import tls from "node:tls";
 import type { LookupFunction } from "node:net";
 import { createGunzip } from "node:zlib";
 import { assertPublicUrl, resolveSecrets, UnsafeUrlError, type UrlPolicy } from "./safe-url";
 
-export const USER_AGENT = `SCENTEX/0.2 (+${process.env.SITE_URL ?? "https://scentex.example"}; perfume price tracker)`;
+/**
+ * Identifiable User-Agent. BOT_CONTACT (an email or URL where a site owner can reach the
+ * operator) must be set before any public-page collection is allowed to run.
+ */
+export const BOT_CONTACT = process.env.BOT_CONTACT ?? "";
+export const USER_AGENT = `SCENTEX-bot/0.3 (perfume price comparison; ${BOT_CONTACT ? `contact: ${BOT_CONTACT}` : `+${process.env.SITE_URL ?? "https://scentex.example"}`})`;
 
 const envInt = (name: string, fallback: number) => {
   const value = Number(process.env[name]);
@@ -34,10 +40,42 @@ function parseAuthHeader(authHeader: string): [string, string] {
   return [name, value];
 }
 
-interface Hop { status: number; location?: string; body?: Buffer }
+interface Hop { status: number; location?: string; body?: Buffer; headers: http.IncomingHttpHeaders; preview?: string }
+
+/**
+ * Some deployments must send all outbound traffic through a mandatory corporate egress proxy.
+ * Opt-in only (SCENTEX_USE_EGRESS_PROXY=1 + HTTPS_PROXY). This is the operator's own gateway,
+ * never a means of hiding from or getting around a site's access controls. The destination is
+ * still vetted by assertPublicUrl before the tunnel is requested.
+ */
+function egressProxy(): URL | null {
+  if (process.env.SCENTEX_USE_EGRESS_PROXY !== "1") return null;
+  const raw = process.env.HTTPS_PROXY ?? process.env.https_proxy;
+  return raw ? new URL(raw) : null;
+}
+
+function openTunnel(proxy: URL, host: string, timeoutMs: number): Promise<import("node:net").Socket> {
+  return new Promise((resolve, reject) => {
+    const headers: Record<string, string> = { Host: `${host}:443` };
+    if (proxy.username) headers["Proxy-Authorization"] = `Basic ${Buffer.from(`${decodeURIComponent(proxy.username)}:${decodeURIComponent(proxy.password)}`).toString("base64")}`;
+    const connect = http.request({ host: proxy.hostname, port: Number(proxy.port || 80), method: "CONNECT", path: `${host}:443`, headers, timeout: timeoutMs });
+    connect.on("connect", (response, socket) => {
+      if (response.statusCode === 200) resolve(socket);
+      else {
+        socket.destroy();
+        reject(new Error(`Egress proxy refused the connection (${response.statusCode})`));
+      }
+    });
+    connect.on("timeout", () => connect.destroy(new Error("Egress proxy timed out")));
+    connect.on("error", reject);
+    connect.end();
+  });
+}
 
 /** One request, connected to an address that was vetted beforehand (no second DNS lookup). */
-function requestOnce(url: URL, addresses: { address: string; family: number }[], headers: Record<string, string>, deadline: number, maxBytes: number): Promise<Hop> {
+async function requestOnce(url: URL, addresses: { address: string; family: number }[], headers: Record<string, string>, deadline: number, maxBytes: number): Promise<Hop> {
+  const proxy = url.protocol === "https:" ? egressProxy() : null;
+  const tunnel = proxy ? await openTunnel(proxy, url.hostname, Math.max(1, deadline - Date.now())) : null;
   return new Promise((resolve, reject) => {
     const pinned: LookupFunction = (_hostname, options, callback) => {
       const cb = callback as (err: Error | null, address: unknown, family?: number) => void;
@@ -61,14 +99,36 @@ function requestOnce(url: URL, addresses: { address: string; family: number }[],
       clearTimeout(timer);
       inflater?.destroy();
       request.destroy();
+      tunnel?.destroy();
       reject(error);
     }
 
-    const request = client.request(url, { method: "GET", headers, lookup: pinned, agent: false }, (response) => {
+    // Through an egress proxy the TLS session runs inside the CONNECT tunnel; otherwise we dial the vetted address.
+    const tunnelAgent = tunnel
+      ? new (class extends https.Agent {
+          createConnection() {
+            return tls.connect({ socket: tunnel, servername: url.hostname });
+          }
+        })({ keepAlive: false })
+      : null;
+    const transport: https.RequestOptions = tunnelAgent ? { agent: tunnelAgent } : { agent: false, lookup: pinned };
+    const request = client.request(url, { method: "GET", headers, ...transport }, (response) => {
       const status = response.statusCode ?? 0;
       if (status !== 200) {
-        response.resume();
-        done({ status, location: status >= 300 && status < 400 ? response.headers.location : undefined });
+        // Keep only the first bytes of an error page: enough to tell who answered, never the whole body.
+        const head: Buffer[] = [];
+        let kept = 0;
+        response.on("data", (chunk: Buffer) => {
+          if (kept < 2048) head.push(chunk.subarray(0, 2048 - kept));
+          kept += chunk.length;
+        });
+        response.on("end", () => {
+          const raw = Buffer.concat(head);
+          const textual = raw[0] === 0x1f ? "" : raw.toString("utf8");
+          const preview = textual.replace(/<(script|style)[\s\S]*?(<\/\1>|$)/gi, " ").replace(/<[^>]*>/g, " ").replace(/&[#\w]+;/g, " ").replace(/\s+/g, " ").trim().slice(0, 160);
+          done({ status, headers: response.headers, preview, location: status >= 300 && status < 400 && status !== 304 ? response.headers.location : undefined });
+        });
+        response.on("error", () => done({ status, headers: response.headers }));
         return;
       }
       if (Number(response.headers["content-length"] ?? 0) > maxBytes) return fail(new Error(`Feed is larger than the ${maxBytes}-byte limit`));
@@ -82,7 +142,7 @@ function requestOnce(url: URL, addresses: { address: string; family: number }[],
         if (size > maxBytes) fail(new Error(`Feed exceeded the ${maxBytes}-byte limit${inflater ? " after decompression" : ""}`));
         else chunks.push(chunk);
       };
-      const finish = () => done({ status, body: Buffer.concat(chunks) });
+      const finish = () => done({ status, headers: response.headers, body: Buffer.concat(chunks) });
 
       response.on("error", (error) => fail(error));
       response.on("data", (chunk: Buffer) => {
@@ -111,10 +171,62 @@ function requestOnce(url: URL, addresses: { address: string; family: number }[],
   });
 }
 
+export interface SafeResponse {
+  status: number;
+  /** Decoded body for 200 responses; null otherwise (e.g. 304, 403, 404). */
+  body: string | null;
+  headers: http.IncomingHttpHeaders;
+  finalUrl: string;
+  /** Plain-text start of a non-200 body (max 160 chars), for diagnosing refusals. */
+  bodyPreview?: string;
+}
+
+export interface SafeGetOptions extends FetchFeedOptions {
+  headers?: Record<string, string>;
+  /** Redirects that leave the original host are refused (used by the page crawler). */
+  sameHostOnly?: boolean;
+}
+
+/** Guarded GET shared by the feed importer and the public-page crawler. Never throws on HTTP status. */
+export async function safeGet(urlText: string, options: SafeGetOptions = {}): Promise<SafeResponse> {
+  const maxBytes = options.maxBytes ?? FEED_LIMITS.maxBytes;
+  const deadline = Date.now() + (options.timeoutMs ?? FEED_LIMITS.timeoutMs);
+  let current = urlText;
+  let originHost: string | null = null;
+
+  for (let hop = 0; hop <= FEED_LIMITS.maxRedirects; hop++) {
+    const { url, addresses } = await assertPublicUrl(current, { ...options.policy, resolvedByEgressProxy: current.startsWith("https:") && egressProxy() != null });
+    originHost ??= url.host;
+    if (options.sameHostOnly && url.host !== originHost) throw new UnsafeUrlError(`Redirect to another host (${url.host}) was refused`);
+    const headers: Record<string, string> = { "User-Agent": USER_AGENT, Accept: "*/*", "Accept-Encoding": "gzip", ...options.headers };
+    if (options.authHeader && url.host === originHost) {
+      const [name, value] = parseAuthHeader(options.authHeader);
+      headers[name] = value;
+    }
+    let result: Hop;
+    try {
+      result = await requestOnce(url, addresses, headers, deadline, maxBytes);
+    } catch (error) {
+      throw new Error(`Could not download from ${url.host}: ${error instanceof Error ? error.message : String(error)}`);
+    }
+    if (result.status >= 300 && result.status < 400 && result.status !== 304) {
+      if (!result.location) throw new Error(`${url.host} sent a redirect without a location`);
+      try {
+        current = new URL(result.location, url).toString();
+      } catch {
+        throw new UnsafeUrlError("Redirected to an invalid URL");
+      }
+      continue;
+    }
+    return { status: result.status, headers: result.headers, finalUrl: url.toString(), bodyPreview: result.preview, body: result.body ? result.body.toString("utf8").replace(/^\uFEFF/, "") : null };
+  }
+  throw new Error(`Request redirected more than ${FEED_LIMITS.maxRedirects} times`);
+}
+
 /**
  * Download a product feed the operator is entitled to use.
  *
- * Security properties:
+ * Security properties (shared with safeGet):
  *  - https only, default port, no credentials in the URL;
  *  - host must resolve exclusively to public addresses, and the connection is pinned to the
  *    vetted address (no DNS rebinding);
@@ -124,36 +236,7 @@ function requestOnce(url: URL, addresses: { address: string; family: number }[],
  *  - error messages name the host only, never the full URL (which may contain a key).
  */
 export async function fetchFeed(urlTemplate: string, options: FetchFeedOptions = {}): Promise<string> {
-  const maxBytes = options.maxBytes ?? FEED_LIMITS.maxBytes;
-  const deadline = Date.now() + (options.timeoutMs ?? FEED_LIMITS.timeoutMs);
-  let current = resolveSecrets(urlTemplate);
-  let originHost: string | null = null;
-
-  for (let hop = 0; hop <= FEED_LIMITS.maxRedirects; hop++) {
-    const { url, addresses } = await assertPublicUrl(current, options.policy);
-    originHost ??= url.host;
-    const headers: Record<string, string> = { "User-Agent": USER_AGENT, Accept: "*/*", "Accept-Encoding": "gzip" };
-    if (options.authHeader && url.host === originHost) {
-      const [name, value] = parseAuthHeader(options.authHeader);
-      headers[name] = value;
-    }
-    let result: Hop;
-    try {
-      result = await requestOnce(url, addresses, headers, deadline, maxBytes);
-    } catch (error) {
-      throw new Error(`Could not download feed from ${url.host}: ${error instanceof Error ? error.message : String(error)}`);
-    }
-    if (result.body) return result.body.toString("utf8").replace(/^﻿/, "");
-    if (result.status >= 300 && result.status < 400) {
-      if (!result.location) throw new Error(`Feed host ${url.host} sent a redirect without a location`);
-      try {
-        current = new URL(result.location, url).toString();
-      } catch {
-        throw new UnsafeUrlError("Feed redirected to an invalid URL");
-      }
-      continue;
-    }
-    throw new Error(`Feed host ${url.host} responded with HTTP ${result.status}`);
-  }
-  throw new Error(`Feed redirected more than ${FEED_LIMITS.maxRedirects} times`);
+  const response = await safeGet(resolveSecrets(urlTemplate), options);
+  if (response.body == null) throw new Error(`Feed host ${new URL(response.finalUrl).host} responded with HTTP ${response.status}`);
+  return response.body;
 }

@@ -15,7 +15,9 @@
     "engine:demo-tick": "tsx scripts/demo-tick.ts",
     "engine:run": "tsx scripts/demo-tick.ts",
     "engine:fx": "tsx scripts/fx.ts",
-    "worker": "tsx scripts/worker.ts"
+    "worker": "tsx scripts/worker.ts",
+    "sources:sync": "tsx scripts/sync-sources.ts",
+    "engine:replay": "tsx scripts/replay-cached.ts"
   },
   "dependencies": {
     "@prisma/client": "^6.19.3",
