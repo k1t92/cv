@@ -42,7 +42,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         <Header currency={currency} mode={mode} />
         <main className="mx-auto max-w-[1400px] px-4 py-6">{children}</main>
         <footer className="mx-auto max-w-[1400px] space-y-1 px-4 pb-10 pt-4 text-xs text-faint">
-          <p>{t.footer.note}</p>
+          <p>{t.footer.note} <a href="/sources" className="underline underline-offset-4 hover:text-ink">Data sources and their status</a></p>
           <p>
             <span className="num">1 EUR = {fx.rate.toFixed(4)} PLN</span> ·{" "}
             {fx.effectiveDate

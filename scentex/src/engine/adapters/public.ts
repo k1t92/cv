@@ -59,6 +59,11 @@ async function guard(prisma: PrismaClient, retailer: Retailer, response: SafeRes
   if (response.status === 429 || response.status === 503) throw new Error(`${what} answered HTTP ${response.status}; backing off`);
 }
 
+export function listingId(pageUrl: string, variantId: string): string {
+  const path = new URL(pageUrl).pathname;
+  return (variantId.startsWith("http") ? path : `${path}#${variantId}`).slice(0, 200);
+}
+
 export function brandPrefixes(brandNames: string[]): string[] {
   return [...new Set(brandNames.flatMap((name) => BRAND_SLUG_ALIASES[name] ?? [slugify(name)]))];
 }
@@ -86,7 +91,7 @@ export const publicAdapter: RetailerAdapter = {
   async fetchOffers(retailer, ctx) {
     const prisma = ctx.prisma;
     const config = retailer.crawlConfig as unknown as CrawlConfig | null;
-    if (retailer.accessStatus !== "PUBLIC_ACCESS_SUPPORTED" || !config) {
+    if ((retailer.accessStatus !== "PUBLIC_ACCESS_SUPPORTED" && retailer.accessStatus !== "PARTIALLY_SUPPORTED") || !config) {
       throw new Error(`Source is ${retailer.accessStatus}: public collection is not permitted for it`);
     }
     if (retailer.blockedAt) throw new Error(`Source was blocked: ${retailer.blockedReason ?? "access refused"}`);
@@ -94,8 +99,10 @@ export const publicAdapter: RetailerAdapter = {
       throw new Error("BOT_CONTACT is not set. Public collection requires a contact address in the User-Agent.");
     }
     const origin = new URL(retailer.websiteUrl).origin;
-    const get = (url: string, maxBytes: number, headers?: Record<string, string>) =>
-      safeGet(url, { maxBytes, timeoutMs: REQUEST_TIMEOUT_MS, sameHostOnly: true, headers: { Accept: "text/html,application/xml;q=0.9,*/*;q=0.5", ...headers } });
+    const get = (url: string, maxBytes: number, headers: Record<string, string> = {}): Promise<SafeResponse> =>
+      ctx.http
+        ? (ctx.http(url, { maxBytes, headers }) as Promise<SafeResponse>)
+        : safeGet(url, { maxBytes, timeoutMs: REQUEST_TIMEOUT_MS, sameHostOnly: true, headers: { Accept: "text/html,application/xml;q=0.9,*/*;q=0.5", ...headers } });
 
     // ---- 1. robots.txt -------------------------------------------------
     let robotsText = retailer.robotsTxt;
@@ -114,7 +121,7 @@ export const publicAdapter: RetailerAdapter = {
     if (disallowsEverything(rules)) await blockSource(prisma, retailer, "robots.txt disallows all automated access.");
     const delayMs = Math.max(MIN_DELAY_FLOOR_MS, config.minDelayMs, (rules.crawlDelaySeconds ?? 0) * 1000);
     const pace = async () => {
-      if (requests++ > 0) await sleep(delayMs);
+      if (requests++ > 0 && !ctx.http) await sleep(delayMs);
     };
 
     // ---- 2. discovery from sitemaps -----------------------------------
@@ -230,6 +237,9 @@ export const publicAdapter: RetailerAdapter = {
       const result = extractProduct(response.body, response.finalUrl, {
         currency: retailer.currency, knownBrands: brandNames, titleExclude: config.titleExclude, inlineVariants: config.inlineVariants,
       });
+      // Identity is the page plus the variant on it. A barcode alone is not an identity here:
+      // two pages can carry the same one (boxed / unboxed, or a shop's data error) and must not overwrite each other.
+      for (const offer of result.offers) offer.externalId = listingId(response.finalUrl, offer.externalId);
       if (result.status === "OK") offers.push(...result.offers);
       await prisma.crawlPage.update({
         where: { id: page.id },

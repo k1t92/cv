@@ -6,7 +6,7 @@
  * Reviews and reviewer names present in the same markup are deliberately never read.
  */
 import { parsePrice } from "../feeds/mapping";
-import { normalizeBrand, normalizeText, parseConcentration } from "../matching";
+import { isValidGtin, normalizeBrand, normalizeText, parseConcentration } from "../matching";
 import type { RawOffer } from "../types";
 
 export type ExtractStatus = "OK" | "NOT_FRAGRANCE" | "NO_PRODUCT" | "NO_PRICE" | "AMBIGUOUS_PRICE" | "UNSUPPORTED_CURRENCY";
@@ -77,7 +77,8 @@ function gtinOf(...nodes: (Json | undefined)[]): string | undefined {
     if (!node) continue;
     for (const key of ["gtin13", "gtin", "gtin14", "gtin12", "gtin8"]) {
       const digits = text(node[key])?.replace(/\D/g, "");
-      if (digits && digits.length >= 8 && digits.length <= 14) return digits;
+      // Only barcodes with a correct check digit are kept; anything else is treated as absent.
+      if (digits && isValidGtin(digits)) return digits;
     }
   }
   return undefined;
@@ -192,7 +193,8 @@ export function extractProduct(html: string, pageUrl: string, options: ExtractOp
     // Variant label: the offer's own name, else the storefront's inline variant name for the same SKU.
     const inline = variantNames.get(text(offer.sku) ?? "");
     const variant = text(offer.name) ?? (inline && inline.startsWith(name) ? inline.slice(name.length).replace(/^[\s\-–/]+/, "") : inline);
-    const title = variant && !name.includes(variant) ? `${name} ${variant}` : name;
+    const squash = (value: string) => value.toLowerCase().replace(/\s+/g, "");
+    const title = variant && !squash(name).includes(squash(variant)) ? `${name} ${variant}` : name;
     const gtin = gtinOf(offer, offerNodes.length === 1 ? product : undefined);
     const url = webUrl(offer.url, pageUrl) ?? pageUrl;
     const id = text(offer.sku) ?? gtin ?? (offerNodes.length === 1 ? text(product.sku) ?? text(product.productID) : undefined) ?? url;

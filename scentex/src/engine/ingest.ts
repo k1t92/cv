@@ -4,7 +4,7 @@ import { deriveLineName, matchProduct, parseTitle, type MatchCandidate } from ".
 import { slugify } from "./demo/catalog";
 import { recomputeProductStats } from "./stats";
 import { computeTransition, isPlausibleMove } from "./transition";
-import { rawOfferSchema, type RawOffer, type RetailerAdapter } from "./types";
+import { rawOfferSchema, type AdapterContext, type RawOffer, type RetailerAdapter } from "./types";
 
 export interface RunSummary {
   retailer: string;
@@ -43,14 +43,14 @@ async function withRetry<T>(fn: () => Promise<T>, attempts = 3, baseDelayMs = 50
  * fetch (with retry) -> validate -> dedupe -> match -> detect change -> store -> recompute stats.
  * Every run leaves a ScraperJob row, including failed ones.
  */
-export async function runAdapter(prisma: PrismaClient, retailer: Retailer, adapter: RetailerAdapter, now = new Date(), options: { allowNoContact?: boolean } = {}): Promise<RunSummary> {
+export async function runAdapter(prisma: PrismaClient, retailer: Retailer, adapter: RetailerAdapter, now = new Date(), options: Pick<AdapterContext, "allowNoContact" | "http"> = {}): Promise<RunSummary> {
   const job = await prisma.scraperJob.create({ data: { retailerId: retailer.id, status: "RUNNING", startedAt: now } });
   const summary: RunSummary = { retailer: retailer.slug, status: "SUCCEEDED", offersSeen: 0, offersChanged: 0, offersRejected: 0, unmatched: 0, offersMissing: 0 };
   const mode = modeOf(retailer.sourceKind);
 
   try {
     // Partial (page-crawling) adapters pace their own requests and must not be re-run on failure.
-    const context = { now, prisma, allowNoContact: options.allowNoContact, warnings: [] as string[] };
+    const context: AdapterContext = { now, prisma, allowNoContact: options.allowNoContact, http: options.http, warnings: [] };
     const fetched = adapter.partial ? await adapter.fetchOffers(retailer, context) : await withRetry(() => adapter.fetchOffers(retailer, context));
 
     // Validate + dedupe (last listing wins for a repeated externalId).
@@ -138,6 +138,10 @@ export async function runAdapter(prisma: PrismaClient, retailer: Retailer, adapt
         if (match.productId) affected.add(match.productId);
         continue;
       }
+
+      // Time only moves forward: an observation that is not newer than what is stored changes nothing.
+      // This makes re-running an import (or replaying stored extractions) a true no-op.
+      if (existing.lastCheckedAt.getTime() >= now.getTime()) continue;
 
       if (existing.currency !== offer.currency || !isPlausibleMove(existing.priceMinor, offer.priceMinor)) {
         // Quarantine: likely a parsing error or a mis-keyed price. Keep the old state.

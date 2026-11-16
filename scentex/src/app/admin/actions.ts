@@ -112,6 +112,11 @@ export async function toggleSource(form: FormData) {
   await requireAdmin();
   const source = await prisma.retailer.findUnique({ where: { id: String(form.get("id")) } });
   if (!source) back("/admin", "Source not found", "error");
+  if (!source!.enabled && source!.adapterKey === "public") {
+    // Public collection may only be switched on for sources that passed the access audit and are not blocked.
+    if (!["PUBLIC_ACCESS_SUPPORTED", "PARTIALLY_SUPPORTED"].includes(source!.accessStatus) || !source!.crawlConfig) back("/admin", `${source!.name}: public collection is not permitted (${source!.accessStatus})`, "error");
+    if (source!.blockedAt) back("/admin", `${source!.name} was paused after an access refusal. Review it and use "Clear block" first.`, "error");
+  }
   await prisma.retailer.update({ where: { id: source!.id }, data: { enabled: !source!.enabled, consecutiveFailures: 0 } });
   await recomputeRetailerProducts(source!.id, modeOf(source!.sourceKind));
   revalidatePath("/", "layout");
@@ -223,4 +228,19 @@ export async function createProductFromListing(form: FormData) {
   await attach(listing!.id, product.id);
   revalidatePath("/", "layout");
   back("/admin/matches", `Created ${slug}`);
+}
+
+/**
+ * Lift an automatic pause after a human has looked at why the site refused us (and, ideally,
+ * lowered the request rate or obtained the site's consent). The source stays disabled; enabling is a second, explicit step.
+ */
+export async function clearBlock(form: FormData) {
+  await requireAdmin();
+  const source = await prisma.retailer.findUnique({ where: { id: String(form.get("id")) } });
+  if (!source?.blockedAt) back("/admin", "Source is not paused", "error");
+  if (!source!.crawlConfig) back("/admin", "This source has no permitted collection method", "error");
+  await prisma.retailer.update({ where: { id: source!.id }, data: { blockedAt: null, blockedReason: null, accessStatus: "PARTIALLY_SUPPORTED", consecutiveFailures: 0 } });
+  await recomputeRetailerProducts(source!.id, "LIVE");
+  revalidatePath("/", "layout");
+  back("/admin", `${source!.name}: block cleared (still disabled). Access status set to PARTIALLY_SUPPORTED.`);
 }

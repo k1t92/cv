@@ -32,6 +32,8 @@ export interface AdapterContext {
   prisma: PrismaClient;
   /** Manual, operator-supervised test runs only: permit collection before BOT_CONTACT is configured. */
   allowNoContact?: boolean;
+  /** Transport override for tests; production always uses the guarded client. */
+  http?: (url: string, options: { maxBytes: number; headers: Record<string, string> }) => Promise<{ status: number; body: string | null; headers: Record<string, unknown>; finalUrl: string; bodyPreview?: string }>;
   /** Adapter-reported problems that did not prevent returning data; they turn the run into PARTIAL. */
   warnings: string[];
 }

@@ -17,6 +17,7 @@ export function Header({ currency, mode }: { currency: CurrencyCode; mode: DataM
         <nav className="flex items-center gap-4 text-sm text-muted">
           <Link href="/" className="hover:text-ink">{t.nav.market}</Link>
           <Link href="/perfumes" className="hover:text-ink">{t.nav.perfumes}</Link>
+          <Link href="/sources" className="hover:text-ink">Sources</Link>
         </nav>
         <form action="/perfumes" role="search" className="order-last w-full sm:order-none sm:ml-auto sm:w-72">
           <input

@@ -13,12 +13,18 @@ async function main() {
   if (!retailer) throw new Error("Usage: npm run engine:replay -- <source-slug>");
   const pages = await prisma.crawlPage.findMany({ where: { retailerId: retailer.id, isSitemap: false, status: "OK", lastFetchedAt: { not: null } } });
   if (!pages.length) throw new Error("No extracted pages to replay");
-  const observedAt = new Date(Math.max(...pages.map((p) => p.lastFetchedAt!.getTime())));
-  const cached: RetailerAdapter = {
-    key: "replay", partial: true,
-    fetchOffers: async () => pages.flatMap((p) => (p.lastOffers as unknown as RawOffer[] | null) ?? []),
-  };
-  console.log(JSON.stringify(await runAdapter(prisma, retailer, cached, observedAt)));
+  // Each page's offers are replayed at the moment that page was actually fetched, oldest first.
+  const byTime = new Map<number, typeof pages>();
+  for (const page of pages) byTime.set(page.lastFetchedAt!.getTime(), [...(byTime.get(page.lastFetchedAt!.getTime()) ?? []), page]);
+  for (const time of [...byTime.keys()].sort((a, b) => a - b)) {
+    const group = byTime.get(time)!;
+    const cached: RetailerAdapter = {
+      key: "replay", partial: true,
+      fetchOffers: async () => group.flatMap((p) => (p.lastOffers as unknown as RawOffer[] | null) ?? []),
+    };
+    const fresh = await prisma.retailer.findUniqueOrThrow({ where: { id: retailer.id } });
+    console.log(new Date(time).toISOString(), JSON.stringify(await runAdapter(prisma, fresh, cached, new Date(time))));
+  }
 }
 
 main()

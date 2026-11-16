@@ -3,11 +3,27 @@
 A price-tracking terminal for fragrances: lowest current price across retailers, stored price
 history, real price drops vs. store-claimed discounts. Target markets: Poland first, then the EU.
 
-> **Status: Phase 2 (real-data infrastructure).** Everything needed to import, store, schedule,
-> monitor and display real prices is built. **No retailer feeds real prices yet** — every realistic
-> source needs an affiliate-network account the project does not have (see [DATA_SOURCES.md](DATA_SOURCES.md)).
-> The only live data today is the NBP EUR/PLN reference rate. Demo prices remain available, strictly
-> separated and labelled.
+> **Status: first real prices.** 52 live offers from the public product pages of two Polish shops are in
+> the database (45 perfumeria.pl, 7 e-glamour.pl) and shown in LIVE mode. Only perfumeria.pl is being
+> collected; e-glamour.pl refused requests and is paused; Sephora, Douglas, Notino, Flaconi and Marionnaud
+> refuse automated access and are not collected. There is one day of data and **no product yet has prices
+> from two shops**. Details: [LIVE_DATA_REPORT.md](LIVE_DATA_REPORT.md), [DATA_SOURCE_AUDIT.md](DATA_SOURCE_AUDIT.md),
+> affiliate-feed route: [DATA_SOURCES.md](DATA_SOURCES.md).
+
+## Public price collection
+
+- `npm run sources:sync` registers the audited sources (disabled). Only sources that passed the audit carry a
+  collection config (`src/engine/crawl/stores.ts`); the others are listed with the reason they are off.
+- The `public` adapter reads robots.txt (obeys Disallow and Crawl-delay), discovers product pages from the
+  shop's own sitemaps, fetches a small batch per run with conditional requests at ≥ 2 s spacing, and extracts
+  schema.org Product/Offer JSON-LD (Open Graph as fallback). It executes no page scripts and reads no reviews.
+- A 401/403 or an anti-bot challenge **stops the run, keeps what was already read, disables the source** and
+  records who refused. Re-enabling takes two explicit admin steps. Nothing is retried around a refusal.
+- Scheduled runs require `BOT_CONTACT` (email or URL placed in the User-Agent).
+- Offers older than 72 h are marked stale and stop counting as the lowest price; paused sources stay visible, labelled.
+- New products are created automatically only when nothing is guessed: tracked brand, valid barcode, stated
+  concentration and volume. Everything else waits in `/admin/matches`.
+- `/sources` shows every live source and its state to visitors.
 
 ## DEMO vs LIVE
 
@@ -31,12 +47,12 @@ history, real price drops vs. store-claimed discounts. Target markets: Poland fi
 | Scheduler | `npm run worker`: runs due sources each minute (per-source interval, exponential back-off after failures, PostgreSQL advisory lock against double runs), refreshes FX every 6 h |
 | FX | Live NBP table A rates stored with history (`ExchangeRate`) |
 | Admin (`/admin`) | Token login; sources with status / last + next run / offer and match counts; add, edit, enable, disable, run now, delete with history; import log; FX refresh; match-review queue (link, create product, reject) |
-| Tests | 40 unit tests |
+| Tests | 135 unit tests + 9 database-backed integration tests (`npm run test:all`) |
 
 ## Not built yet (and not pretended)
 
-- **A live retailer source.** Blocked on access, not on code.
-- End-to-end import of a real feed has therefore never run. Each layout is covered by unit tests on
+- **A second working source, and any price history.** One shop, one day.
+- End-to-end import of a real *feed* (affiliate route) has still never run. Each layout is covered by unit tests on
   synthetic fixtures; column names for Awin/Ceneo come from their public documentation and may need
   adjusting on first contact with a real file (per-source field overrides exist for that).
 - Feeds are parsed in memory (250 MB cap). Multi-GB feeds would need a streaming parser.
@@ -60,10 +76,12 @@ npm run dev            # http://localhost:3000   (admin: /admin, needs ADMIN_TOK
 npm run worker         # scheduler: imports due sources, refreshes FX
 ```
 
-Other commands: `npm run typecheck`, `npm test`, `npm run build`, `npm run engine:run [-- <slug>]`
-(run all sources, or one, immediately), `npm run db:reset`.
+Other commands: `npm run typecheck`, `npm test`, `npm run test:integration` (uses a separate `scentex_test`
+schema), `npm run build`, `npm run engine:run [-- <slug>]` (run all sources, or one, immediately),
+`npm run engine:replay -- <slug>` (re-ingest stored extractions, no requests), `npm run report:live`, `npm run db:reset`.
 
-Behind an HTTP proxy set `NODE_USE_ENV_PROXY=1` (Node 22.21+) so the importer honours `HTTPS_PROXY`.
+Behind a mandatory outbound proxy set `NODE_USE_ENV_PROXY=1` (NBP rates) and `SCENTEX_USE_EGRESS_PROXY=1`
+(feeds and page collection). Without a proxy the collector connects directly and pins the DNS-validated address.
 
 ## Architecture
 
@@ -73,6 +91,7 @@ src/engine/                 DATA ENGINE — no UI imports
   types.ts                  RawOffer (the standard adapter output) + RetailerAdapter interface
   adapters/                 registry: `feed` (any CSV/XML/JSON feed, configured in /admin) and `demo`
   feeds/                    fetch (gzip, auth header), parse, field-mapping presets, record → RawOffer
+  crawl/                    robots.txt, sitemap, structured-data extraction, audited store profiles
   scheduler.ts, fx.ts       due-source runner with back-off + locking; NBP rates
   matching.ts               EAN → brand+line+concentration+volume → else manual review
   transition.ts             change detection + plausibility rule (pure)

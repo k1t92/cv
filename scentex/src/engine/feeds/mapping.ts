@@ -1,3 +1,4 @@
+import { isValidGtin } from "../matching";
 import type { RawOffer } from "../types";
 import { getPath, textOf, type FeedRecord } from "./parse";
 import type { FeedPreset, FieldMap } from "./presets";
@@ -110,7 +111,7 @@ export function mapRecord(record: FeedRecord, preset: FeedPreset, context: Mappi
       externalId: pick(fields.externalId),
       title,
       brand: pick(fields.brand),
-      ean: ean && ean.length >= 8 && ean.length <= 14 ? ean : undefined,
+      ean: isValidGtin(ean) ? ean : undefined,
       priceMinor: price?.minor,
       // A 'was' price at or below the current price is noise, not a discount.
       originalPriceMinor: original != null && price && original > price.minor ? original : undefined,

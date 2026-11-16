@@ -1,7 +1,7 @@
 import type { Concentration, DataMode, Prisma } from "@prisma/client";
 import { prisma } from "./db";
 import { getFx } from "./fx";
-import { modeFilter } from "./mode";
+import { modeFilter, visibleFilter } from "./mode";
 import { convertMinor, type CurrencyCode } from "./money";
 import { rangeStart, type RangeKey } from "./ranges";
 import { clip, compress, lowestAcross, seriesStats, type Observation, type SeriesStats } from "./series";
@@ -18,7 +18,7 @@ export async function getMarketSummary(mode: DataMode) {
     prisma.$queryRaw<{ count: bigint }[]>`
       SELECT count(*) FROM "RetailerProduct" rp JOIN "Retailer" r ON r."id" = rp."retailerId"
       WHERE rp."productId" IS NOT NULL AND rp."availability" = 'IN_STOCK' AND rp."originalPriceMinor" > rp."priceMinor"
-        AND r."enabled" AND (r."sourceKind" = 'DEMO') = ${kind}`,
+        AND (r."enabled" OR r."blockedAt" IS NOT NULL) AND (r."sourceKind" = 'DEMO') = ${kind}`,
     prisma.productStats.count({ where: { mode, isLow30d: true } }),
     prisma.retailer.aggregate({ where: modeFilter(mode), _max: { lastRunAt: true } }),
   ]);
@@ -60,7 +60,7 @@ export function getFeatured(mode: DataMode, take = 6): Promise<StatsRow[]> {
 
 export function getRecentChanges(mode: DataMode, take = 8) {
   return prisma.priceChange.findMany({
-    where: { productId: { not: null }, retailerProduct: { retailer: modeFilter(mode) } },
+    where: { productId: { not: null }, retailerProduct: { retailer: visibleFilter(mode) } },
     orderBy: { detectedAt: "desc" },
     take,
     include: { product: { include: { brand: true } }, retailerProduct: { include: { retailer: true } } },
@@ -176,14 +176,14 @@ export function getProduct(slug: string, mode: DataMode) {
     include: {
       brand: true,
       stats: { where: { mode } },
-      offers: { where: { matchStatus: { in: [...MATCHED] }, retailer: modeFilter(mode) }, include: { retailer: true } },
+      offers: { where: { matchStatus: { in: [...MATCHED] }, retailer: visibleFilter(mode) }, include: { retailer: true } },
     },
   });
 }
 
 export function getPriceChanges(productId: string, mode: DataMode, take = 200) {
   return prisma.priceChange.findMany({
-    where: { productId, retailerProduct: { retailer: modeFilter(mode) } },
+    where: { productId, retailerProduct: { retailer: visibleFilter(mode) } },
     orderBy: { detectedAt: "desc" },
     take,
     include: { retailerProduct: { include: { retailer: true } } },
@@ -211,7 +211,7 @@ export interface HistoryPayload {
 export async function getHistory(slug: string, range: RangeKey, currency: CurrencyCode, mode: DataMode, now = new Date()): Promise<HistoryPayload | null> {
   const product = await prisma.product.findUnique({
     where: { slug },
-    select: { offers: { where: { matchStatus: { in: [...MATCHED] }, retailer: modeFilter(mode) }, select: { id: true, currency: true, retailer: true } } },
+    select: { offers: { where: { matchStatus: { in: [...MATCHED] }, retailer: visibleFilter(mode) }, select: { id: true, currency: true, retailer: true } } },
   });
   if (!product) return null;
   const start = rangeStart(range, now);

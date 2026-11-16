@@ -7,7 +7,7 @@ import { prisma } from "@/lib/db";
 import { formatDateTime, timeAgo } from "@/lib/format";
 import { getFx } from "@/lib/fx";
 import { modeOf } from "@/lib/mode";
-import { refreshFx, runNow, toggleSource } from "./actions";
+import { clearBlock, refreshFx, runNow, toggleSource } from "./actions";
 import { AdminNav, Flash, btn } from "./ui";
 
 export const metadata: Metadata = { title: "Admin · sources", robots: { index: false } };
@@ -25,6 +25,9 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
   ]);
   const matched = await prisma.retailerProduct.groupBy({ by: ["retailerId"], where: { productId: { not: null } }, _count: true });
   const matchedBy = new Map(matched.map((m) => [m.retailerId, m._count]));
+  const pageRows = await prisma.crawlPage.groupBy({ by: ["retailerId", "status"], where: { isSitemap: false }, _count: true });
+  const pagesBy = new Map<string, Record<string, number>>();
+  for (const row of pageRows) pagesBy.set(row.retailerId, { ...(pagesBy.get(row.retailerId) ?? {}), [row.status]: row._count });
   const now = new Date();
   const live = sources.filter((s) => s.sourceKind !== "DEMO");
 
@@ -54,11 +57,17 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
                       <div className="font-medium">{s.name} <span className="text-faint">{s.country} · {s.currency}</span></div>
                       <div className="num text-xs text-muted">{s.slug}</div>
                       {s.lastError && <div className="mt-1 max-w-md text-xs text-rise">{s.lastError}</div>}
+                      {s.blockedReason && <div className="mt-1 max-w-md text-xs text-muted">{s.blockedAt ? "Paused: " : "Audit: "}{s.blockedReason}</div>}
+                      {pagesBy.has(s.id) && (
+                        <div className="num mt-1 text-xs text-muted">
+                          pages: {Object.entries(pagesBy.get(s.id)!).sort().map(([status, n]) => `${status.toLowerCase().replace(/_/g, " ")} ${n}`).join(" · ")}
+                        </div>
+                      )}
                     </td>
                     <td className="px-3 py-2.5"><Badge tone={mode === "LIVE" ? "fall" : "gold"}>{mode}</Badge></td>
-                    <td className="px-3 py-2.5 text-xs text-muted">{s.sourceKind}<br />{s.feedPreset ?? s.adapterKey}</td>
+                    <td className="px-3 py-2.5 text-xs text-muted">{s.sourceKind}<br />{s.feedPreset ?? s.adapterKey}{s.adapterKey === "public" && <><br />{s.accessStatus.toLowerCase().replace(/_/g, " ")}</>}</td>
                     <td className="px-3 py-2.5">
-                      {!s.enabled ? <Badge>Disabled</Badge> : s.lastStatus ? <Badge tone={STATUS_TONE[s.lastStatus]}>{s.lastStatus}</Badge> : <Badge>Never run</Badge>}
+                      {s.blockedAt ? <Badge tone="rise">Paused</Badge> : !s.enabled ? <Badge>Disabled</Badge> : s.lastStatus ? <Badge tone={STATUS_TONE[s.lastStatus]}>{s.lastStatus}</Badge> : <Badge>Never run</Badge>}
                       {s.consecutiveFailures > 0 && <div className="mt-1 text-xs text-rise">{s.consecutiveFailures} failed run{s.consecutiveFailures === 1 ? "" : "s"} in a row</div>}
                     </td>
                     <td className="px-3 py-2.5 text-xs text-muted">{timeAgo(s.lastRunAt, now)}</td>
@@ -67,9 +76,12 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
                     <td className="num px-3 py-2.5">{matchedBy.get(s.id) ?? 0}</td>
                     <td className="px-3 py-2.5 pr-4">
                       <div className="flex flex-wrap justify-end gap-1.5">
-                        <form action={runNow}><input type="hidden" name="id" value={s.id} /><button className={btn}>Run now</button></form>
-                        <form action={toggleSource}><input type="hidden" name="id" value={s.id} /><button className={btn}>{s.enabled ? "Disable" : "Enable"}</button></form>
-                        {mode === "LIVE" && <Link href={`/admin/sources/${s.id}`} className={btn}>Edit</Link>}
+                        {(s.adapterKey !== "public" || (s.crawlConfig != null && !s.blockedAt)) && <>
+                          <form action={runNow}><input type="hidden" name="id" value={s.id} /><button className={btn}>Run now</button></form>
+                          <form action={toggleSource}><input type="hidden" name="id" value={s.id} /><button className={btn}>{s.enabled ? "Disable" : "Enable"}</button></form>
+                        </>}
+                        {s.blockedAt && s.crawlConfig != null && <form action={clearBlock}><input type="hidden" name="id" value={s.id} /><button className={btn}>Clear block</button></form>}
+                        {mode === "LIVE" && s.adapterKey === "feed" && <Link href={`/admin/sources/${s.id}`} className={btn}>Edit</Link>}
                       </div>
                     </td>
                   </tr>

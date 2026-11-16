@@ -7,6 +7,7 @@
 import { prisma } from "../src/lib/db";
 import { refreshNbpRates } from "../src/engine/fx";
 import { runDueSources } from "../src/engine/scheduler";
+import { recomputeAllStats } from "../src/engine/stats";
 
 const TICK_MS = 60_000;
 const FX_EVERY_MS = 6 * 3_600_000;
@@ -18,6 +19,8 @@ async function tick() {
     try {
       const fx = await refreshNbpRates(prisma);
       console.log(`[fx] NBP EUR/PLN ${fx.latest.rate} (${fx.latest.date})`);
+      // Same cadence: let ageing live prices fall out of "lowest price".
+      await recomputeAllStats(prisma, "LIVE");
       lastFx = Date.now();
     } catch (error) {
       console.error("[fx] refresh failed:", error instanceof Error ? error.message : error);

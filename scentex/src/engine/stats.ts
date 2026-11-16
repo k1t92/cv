@@ -1,7 +1,7 @@
 import type { PrismaClient } from "@prisma/client";
 import type { DataMode } from "@prisma/client";
 import { getFx } from "@/lib/fx";
-import { modeFilter } from "@/lib/mode";
+import { isStale, visibleFilter } from "@/lib/mode";
 import { discountPct, pctChange, toBaseMinor } from "@/lib/money";
 
 const DAY = 86_400_000;
@@ -14,9 +14,10 @@ const DAY = 86_400_000;
 export async function recomputeProductStats(prisma: PrismaClient, productId: string, mode: DataMode, now: Date): Promise<void> {
   const { rate } = await getFx(prisma);
   const offers = await prisma.retailerProduct.findMany({
-    where: { productId, matchStatus: { in: ["AUTO_EAN", "AUTO_ATTRIBUTES", "MANUAL"] }, retailer: modeFilter(mode) },
+    where: { productId, matchStatus: { in: ["AUTO_EAN", "AUTO_ATTRIBUTES", "MANUAL"] }, retailer: visibleFilter(mode) },
   });
-  const inStock = offers.filter((o) => o.availability === "IN_STOCK");
+  // A live price nobody has re-confirmed for days must not be advertised as the current lowest.
+  const inStock = offers.filter((o) => o.availability === "IN_STOCK" && !(mode === "LIVE" && isStale(o.lastCheckedAt, now)));
   const prices = inStock.map((o) => ({ id: o.retailerId, base: toBaseMinor(o.priceMinor, o.currency, rate) }));
   prices.sort((a, b) => a.base - b.base);
   const lowest = prices[0]?.base ?? null;
@@ -91,4 +92,15 @@ export async function recomputeProductStats(prisma: PrismaClient, productId: str
     return;
   }
   await prisma.productStats.upsert({ where: { productId_mode: { productId, mode } }, create: { productId, mode, ...data }, update: data });
+}
+
+/** Recompute every product of a mode. Run periodically so ageing prices drop out of "lowest" even when no import touches them. */
+export async function recomputeAllStats(prisma: PrismaClient, mode: DataMode, now = new Date()): Promise<number> {
+  const rows = await prisma.retailerProduct.findMany({
+    where: { productId: { not: null }, retailer: visibleFilter(mode) }, select: { productId: true }, distinct: ["productId"],
+  });
+  const withStats = await prisma.productStats.findMany({ where: { mode }, select: { productId: true } });
+  const ids = new Set([...rows.map((r) => r.productId!), ...withStats.map((s) => s.productId)]);
+  for (const id of ids) await recomputeProductStats(prisma, id, mode, now);
+  return ids.size;
 }

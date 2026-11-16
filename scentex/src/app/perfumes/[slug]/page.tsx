@@ -10,6 +10,7 @@ import { CONCENTRATION_LONG, formatDateTime, formatMoney, formatPct, timeAgo } f
 import { convertMinor, discountPct } from "@/lib/money";
 import { prisma } from "@/lib/db";
 import { getFx } from "@/lib/fx";
+import { isStale } from "@/lib/mode";
 import { getCurrency, getMode } from "@/lib/prefs";
 import { getPriceChanges, getProduct } from "@/lib/queries";
 
@@ -44,12 +45,16 @@ export default async function ProductPage({ params }: Params) {
     .map((o) => {
       const price = view(o.priceMinor, o.currency)!;
       const shipping = view(o.shippingMinor, o.currency);
-      return { o, price, shipping, total: shipping == null ? null : price + shipping, inStock: o.availability === "IN_STOCK" };
+      // LIVE only: a price is "confirmed" while its source is being collected and the check is recent.
+      const paused = !isDemo && o.retailer.blockedAt != null;
+      const stale = !isDemo && isStale(o.lastCheckedAt, now);
+      return { o, price, shipping, total: shipping == null ? null : price + shipping, inStock: o.availability === "IN_STOCK", paused, stale };
     })
-    .sort((a, b) => Number(b.inStock) - Number(a.inStock) || a.price - b.price);
-  const best = offers.find((x) => x.inStock);
+    .sort((a, b) => Number(b.inStock && !b.stale) - Number(a.inStock && !a.stale) || a.price - b.price);
+  const best = offers.find((x) => x.inStock && !x.stale);
+  const confirmed = offers.filter((x) => x.inStock && !x.stale);
 
-  const offerRows = offers.map(({ o, price, shipping, total, inStock }) => {
+  const offerRows = offers.map(({ o, price, shipping, total, inStock, paused, stale }) => {
     const claimed = discountPct(o.priceMinor, o.originalPriceMinor);
     const cells: Record<string, Cell> = {
       retailer: { text: `${o.retailer.name} ${o.retailer.country}${best?.o.id === o.id ? "  ★ cheapest" : ""}`, strong: true, tone: best?.o.id === o.id ? "gold" : undefined },
@@ -59,7 +64,10 @@ export default async function ProductPage({ params }: Params) {
       shipping: { text: shipping == null ? "—" : shipping === 0 ? "Free" : money(shipping), sort: shipping ?? Number.MAX_SAFE_INTEGER, tone: "muted" },
       total: { text: money(total), sort: total ?? Number.MAX_SAFE_INTEGER },
       stock: { text: inStock ? "In stock" : o.availability === "OUT_OF_STOCK" ? "Out of stock" : "Unknown", tone: inStock ? undefined : "muted", sort: inStock ? 0 : 1 },
-      checked: { text: timeAgo(o.lastCheckedAt, now), sort: -o.lastCheckedAt.getTime(), tone: "muted" },
+      checked: {
+        text: `${formatDateTime(o.lastCheckedAt)} (${timeAgo(o.lastCheckedAt, now)})${stale ? " · STALE" : ""}${paused ? " · source paused" : ""}`,
+        sort: -o.lastCheckedAt.getTime(), tone: stale || paused ? "rise" : "muted",
+      },
       link: { text: isDemo ? "Store home" : "View offer", href: o.url },
     };
     return { key: o.id, cells, highlight: best?.o.id === o.id };
@@ -143,7 +151,7 @@ export default async function ProductPage({ params }: Params) {
         <PriceChart slug={product.slug} currency={currency} mode={mode} />
       </Panel>
 
-      <Panel title={t.offers} hint={`${offers.filter((x) => x.inStock).length} of ${offers.length} in stock · “Claimed discount” is the store’s own struck-through price, not a verified drop.`}>
+      <Panel title={t.offers} hint={`${confirmed.length} confirmed in-stock offer${confirmed.length === 1 ? "" : "s"} from ${new Set(confirmed.map((x) => x.o.retailerId)).size} store${new Set(confirmed.map((x) => x.o.retailerId)).size === 1 ? "" : "s"} (${offers.length} listed) · “Claimed discount” is the store’s own struck-through price, not a verified drop.`}>
         <DataTable
           emptyLabel={t.noOffers}
           initialSort={{ id: "stock", dir: "asc" }}

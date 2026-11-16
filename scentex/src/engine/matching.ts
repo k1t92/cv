@@ -29,6 +29,15 @@ export interface MatchInput {
   concentration?: ConcentrationCode;
 }
 
+/** GS1 check-digit validation for GTIN-8/12/13/14. A barcode that fails it is a typo, not an identity. */
+export function isValidGtin(value: string | undefined | null): boolean {
+  if (!value || !/^(\d{8}|\d{12,14})$/.test(value)) return false;
+  const digits = value.split("").map(Number);
+  const check = digits.pop()!;
+  const sum = digits.reverse().reduce((acc, d, i) => acc + d * (i % 2 === 0 ? 3 : 1), 0);
+  return (10 - (sum % 10)) % 10 === check;
+}
+
 export type MatchResult =
   | { productId: string; status: "AUTO_EAN" | "AUTO_ATTRIBUTES"; confidence: number }
   | { productId: null; status: "PENDING_REVIEW"; confidence: number; suggestionId: string | null };
@@ -145,14 +154,22 @@ function candidateNameKey(c: MatchCandidate): string {
  * 3. Anything weaker -> PENDING_REVIEW for a human (admin panel), never auto-linked.
  */
 export function matchProduct(input: MatchInput, candidates: MatchCandidate[]): MatchResult {
-  if (input.ean) {
-    const byEan = candidates.find((c) => c.ean === input.ean);
-    if (byEan) return { productId: byEan.id, status: "AUTO_EAN", confidence: 1 };
-  }
-
   const parsed = parseTitle(input.title, input.brand);
   const concentration = input.concentration ?? parsed.concentration;
   const volumeMl = input.volumeMl ?? parsed.volumeMl;
+
+  if (input.ean) {
+    const byEan = candidates.find((c) => c.ean === input.ean);
+    if (byEan) {
+      // A barcode normally settles it — unless the listing's own text contradicts the product
+      // (wrong barcode in the shop's data, or a reused one). Then a human decides.
+      const contradicts = (concentration != null && concentration !== byEan.concentration) || (volumeMl != null && volumeMl !== byEan.volumeMl);
+      return contradicts
+        ? { productId: null, status: "PENDING_REVIEW", confidence: 0.4, suggestionId: byEan.id }
+        : { productId: byEan.id, status: "AUTO_EAN", confidence: 1 };
+    }
+  }
+
   const brandKey = input.brand ? normalizeBrand(input.brand) : null;
 
   const sameLine = candidates.filter((c) => {

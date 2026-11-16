@@ -17,7 +17,10 @@
     "engine:fx": "tsx scripts/fx.ts",
     "worker": "tsx scripts/worker.ts",
     "sources:sync": "tsx scripts/sync-sources.ts",
-    "engine:replay": "tsx scripts/replay-cached.ts"
+    "engine:replay": "tsx scripts/replay-cached.ts",
+    "test:integration": "vitest run --config vitest.integration.config.mts",
+    "test:all": "vitest run && vitest run --config vitest.integration.config.mts",
+    "report:live": "tsx scripts/live-report.ts"
   },
   "dependencies": {
     "@prisma/client": "^6.19.3",
